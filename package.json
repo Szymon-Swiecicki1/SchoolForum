@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="pl" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SchoolForum - Platforma Uczniowska</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script>
+        // Critical block path to set theme before rendering content
+        try {
+            const cachedTheme = localStorage.getItem('theme') || 'dark';
+            if (cachedTheme === 'light') {
+                document.documentElement.classList.remove('dark');
+            } else {
+                document.documentElement.classList.add('dark');
+            }
+        } catch (_) {}
+    </script>
+</head>
+<body class="min-h-screen transition-colors duration-200 font-sans selection:bg-blue-600 selection:text-white dark:bg-[#070d19] bg-[#f8fafc] text-slate-800 dark:text-slate-150 pb-20 md:pb-0">
+
+    <!-- App Shell Wrapper (Flex Container) -->
+    <div class="flex max-w-7xl mx-auto min-h-screen relative">
+
+        <!-- 1. LEFT SIDEBAR (X-Style, visible on desktop) -->
+        <aside class="hidden md:flex flex-col justify-between w-64 h-screen sticky top-0 border-r border-slate-205 dark:border-slate-850 p-6 bg-white dark:bg-[#0c1424] z-40">
+            <!-- Top Section -->
+            <div class="space-y-8">
+                <!-- Mascot/Logo header -->
+                <div class="flex items-center gap-3 pl-2">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-750 text-white flex items-center justify-center shadow shadow-blue-500/30">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 14l9-5-9-5-9 5 9 5z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="font-extrabold text-base text-slate-900 dark:text-white leading-tight">SchoolForum</div>
+                        <div class="text-[10px] text-slate-450 dark:text-slate-500 font-bold uppercase tracking-wider">Dla Licealistów</div>
+                    </div>
+                </div>
+
+                <!-- Navigation List -->
+                <nav class="space-y-1">
+                    <!-- Tab 1: Forum -->
+                    <button class="tab-btn w-full flex items-center gap-4 px-4 py-3 rounded-2xl text-base font-semibold text-slate-650 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-850 hover:text-blue-600 dark:hover:text-blue-400 transition-all cursor-pointer" data-tab="forum">
+                        <i data-lucide="message-square" class="w-5 h-5"></i>
+                        <span>Forum</span>
+                    </button>
+
+                    <!-- Tab 2: Pytania (Sprawdziany) -->
+                    <button class="tab-btn w-full flex items-center gap-4 px-4 py-3 rounded-2xl text-base font-semibold text-slate-650 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-850 hover:text-blue-600 dark:hover:text-blue-400 transition-all cursor-pointer" data-tab="exams">
+                        <i data-lucide="help-circle" class="w-5 h-5"></i>
+                        <span>Pytania</span>
+                    </button>
+
+                    <!-- Tab 3: Przykładowe Egzaminy -->
+                    <button class="tab-btn w-full flex items-center gap-4 px-4 py-3 rounded-2xl text-base font-semibold text-slate-650 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-850 hover:text-blue-600 dark:hover:text-blue-400 transition-all cursor-pointer" data-tab="files">
+                        <i data-lucide="book-open" class="w-5 h-5"></i>
+                        <span>Arkusze</span>
+                    </button>
+
+                    <!-- Tab 4: Moje Konto -->
+                    <button class="tab-btn w-full flex items-center gap-4 px-4 py-3 rounded-2xl text-base font-semibold text-slate-650 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-850 hover:text-blue-600 dark:hover:text-blue-400 transition-all cursor-pointer" data-tab="account">
+                        <i data-lucide="user" class="w-5 h-5"></i>
+                        <span>Konto</span>
+                    </button>
+
+                    <!-- Tab 6: Panel Admin -->
+                    <button id="admin_sidebar_btn" class="tab-btn w-full hidden flex items-center gap-4 px-4 py-3 rounded-2xl text-base font-semibold text-slate-650 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-850 hover:text-rose-600 dark:hover:text-rose-400 transition-all cursor-pointer" data-tab="admin">
+                        <i data-lucide="shield" class="w-5 h-5 text-rose-500"></i>
+                        <span class="text-rose-600 dark:text-rose-405 font-extrabold">Panel Admin</span>
+                    </button>
+
+                    <!-- Tab 5: Ustawienia -->
+                    <button class="tab-btn w-full flex items-center gap-4 px-4 py-3 rounded-2xl text-base font-semibold text-slate-650 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-850 hover:text-blue-600 dark:hover:text-blue-400 transition-all cursor-pointer" data-tab="settings">
+                        <i data-lucide="settings" class="w-5 h-5"></i>
+                        <span>Ustawienia</span>
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Bottom User Section -->
+            <div class="border-t border-slate-100 dark:border-slate-850 pt-5 space-y-4">
+                <div class="flex items-center justify-between gap-2.5">
+                    <div class="flex items-center gap-3 overflow-hidden">
+                        <img id="sidebar_avatar" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&auto=format&fit=crop" alt="Avatar" class="w-10 h-10 rounded-full border border-slate-200 dark:border-slate-700 object-cover shrink-0" />
+                        <div class="overflow-hidden">
+                            <div id="sidebar_fullname" class="font-extrabold text-xs text-slate-800 dark:text-slate-200 truncate leading-tight">Uczeń Szkoły</div>
+                            <div id="sidebar_email" class="text-[9px] text-slate-550 dark:text-slate-400 truncate">uczen@szkola.edu.pl</div>
+                        </div>
+                    </div>
+                    <!-- Quick Sun/Moon Global Theme toggler for desktop -->
+                    <button id="global_theme_toggle_btn" class="p-2 rounded-xl text-slate-400 hover:text-blue-500 hover:bg-slate-50 dark:hover:bg-slate-900 cursor-pointer transition-all" title="Zmień motyw">
+                        <span class="hidden dark:inline-block"><i data-lucide="sun" class="w-4.5 h-4.5"></i></span>
+                        <span class="inline-block dark:hidden"><i data-lucide="moon" class="w-4.5 h-4.5"></i></span>
+                    </button>
+                </div>
+                <button id="logout_btn" class="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-red-200 dark:border-red-950/60 text-xs font-semibold text-red-650 dark:text-red-400 bg-red-50/20 dark:bg-red-950/10 hover:bg-red-50 dark:hover:bg-red-950/25 transition-all cursor-pointer">
+                    <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+                    <span>Wyloguj się</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- 2. MOBILE BOTTOM NAVIGATION (visible on mobile only) -->
+        <nav class="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white dark:bg-[#0c1424] border-t border-slate-200 dark:border-slate-850 flex justify-around items-center z-40 shadow-lg px-2">
+            <!-- Tab: Forum -->
+            <button class="tab-btn flex flex-col items-center justify-center gap-1.5 py-1 px-3 rounded-xl text-slate-450 hover:text-blue-500" data-tab="forum">
+                <i data-lucide="message-square" class="w-5 h-5"></i>
+                <span class="text-[9px] font-bold">Forum</span>
+            </button>
+            <!-- Tab: Exams (Pytania) -->
+            <button class="tab-btn flex flex-col items-center justify-center gap-1.5 py-1 px-3 rounded-xl text-slate-450 hover:text-blue-500" data-tab="exams">
+                <i data-lucide="help-circle" class="w-5 h-5"></i>
+                <span class="text-[9px] font-bold">Pytania</span>
+            </button>
+            <!-- Tab: Files (Arkusze) -->
+            <button class="tab-btn flex flex-col items-center justify-center gap-1.5 py-1 px-3 rounded-xl text-slate-450 hover:text-blue-500" data-tab="files">
+                <i data-lucide="book-open" class="w-5 h-5"></i>
+                <span class="text-[9px] font-bold">Arkusze</span>
+            </button>
+            <!-- Tab: Account -->
+            <button class="tab-btn flex flex-col items-center justify-center gap-1.5 py-1 px-3 rounded-xl text-slate-450 hover:text-blue-500" data-tab="account">
+                <i data-lucide="user" class="w-5 h-5"></i>
+                <span class="text-[9px] font-bold">Profil</span>
+            </button>
+            <!-- Tab: Admin Panel -->
+            <button id="mobile_admin_sidebar_btn" class="tab-btn hidden flex flex-col items-center justify-center gap-1.5 py-1 px-3 rounded-xl text-slate-450 hover:text-rose-500" data-tab="admin">
+                <i data-lucide="shield" class="w-5 h-5 text-rose-500"></i>
+                <span class="text-[9px] font-extrabold text-rose-600 dark:text-rose-400">Admin</span>
+            </button>
+            <!-- Tab: Settings -->
+            <button class="tab-btn flex flex-col items-center justify-center gap-1.5 py-1 px-3 rounded-xl text-slate-450 hover:text-blue-500" data-tab="settings">
+                <i data-lucide="settings" class="w-5 h-5"></i>
+                <span class="text-[9px] font-bold">Ucz</span>
+            </button>
+        </nav>
+
+        <!-- 3. CENTRAL MAIN VIEWS AREA (Acts as viewport) -->
+        <div class="flex-grow min-h-screen px-4 py-6 sm:p-8 lg:p-10 w-full overflow-y-auto max-w-4xl">
+            <!-- Mobile Header with theme switcher and logout -->
+            <header class="md:hidden flex items-center justify-between mb-6 pb-4 border-b border-slate-100 dark:border-slate-855">
+                <div class="flex items-center gap-2">
+                    <img id="mobile_avatar" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&auto=format&fit=crop" alt="Avatar" class="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 object-cover shrink-0" />
+                    <span class="font-extrabold text-slate-900 dark:text-white text-md">SchoolForum</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <!-- Global theme switcher for mobile layout -->
+                    <button id="mobile_theme_toggle_btn" class="p-2 rounded-xl text-slate-450 hover:text-blue-500 hover:bg-slate-50 dark:hover:bg-slate-900 cursor-pointer transition-all">
+                        <span class="hidden dark:inline-block"><i data-lucide="sun" class="w-4 h-4"></i></span>
+                        <span class="inline-block dark:hidden"><i data-lucide="moon" class="w-4 h-4"></i></span>
+                    </button>
+                    <button id="mobile_logout_btn" class="p-1 px-2.5 rounded-lg border border-red-200 dark:border-red-950 text-red-550 dark:text-red-400 text-xs font-semibold bg-red-50/20 dark:bg-red-950/10 hover:bg-red-100 dark:hover:bg-red-900/20 transition-all cursor-pointer">
+                        Wyjdź
+                    </button>
+                </div>
+            </header>
+
+            <!-- ================= ZAKŁADKA 1: FORUM ================= -->
+            <section id="view_forum" class="tab-view space-y-6">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                        <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Forum Społecznościowe</h1>
+                        <p class="text-sm text-slate-500 dark:text-slate-450">Wyraź opinię, zadaj pytanie lub pomóż innym w nauce</p>
+                    </div>
+                    <!-- Add Post Trigger -->
+                    <button id="add_post_btn" class="cursor-pointer inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 font-semibold text-sm text-white shadow-lg shadow-blue-500/10 transition-all hover:scale-[1.02] active:scale-[0.98]">
+                        <span class="text-lg leading-none">+</span> Dodaj nowy post
+                    </button>
+                </div>
+
+                <!-- Filters panel -->
+                <div class="p-4 rounded-2xl bg-white dark:bg-[#0c1424] border border-slate-150 dark:border-slate-850/60 shadow-sm flex flex-col sm:flex-row items-center gap-4">
+                    <span class="text-xs font-extrabold uppercase tracking-widest text-[#245ce6] dark:text-[#5283ff] shrink-0">Filtrowanie:</span>
+                    
+                    <div class="w-full sm:w-auto flex flex-wrap gap-3 flex-grow">
+                        <!-- Class Select Filter -->
+                        <div class="relative flex-grow sm:flex-grow-0 sm:w-40">
+                            <select id="filter_class" class="w-full pl-3 pr-8 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-800 text-slate-800 dark:text-slate-250 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all cursor-pointer appearance-none">
+                                <option class="bg-white text-slate-900 dark:bg-[#0c1424] dark:text-zinc-100" value="all">Wszystkie klasy</option>
+                                <option class="bg-white text-slate-900 dark:bg-[#0c1424] dark:text-zinc-100" value="1LO">1LO</option>
+                                <option class="bg-white text-slate-900 dark:bg-[#0c1424] dark:text-zinc-100" value="2LO">2LO</option>
+                                <option class="bg-white text-slate-900 dark:bg-[#0c1424] dark:text-zinc-100" value="3LO">3LO</option>
+                                <option class="bg-white text-slate-900 dark:bg-[#0c1424] dark:text-zinc-100" value="4LO">4LO</option>
+                            </select>
+                            <span class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-[10px]">&darr;</span>
+                        </div>
+
+                        <!-- Subject Select Filter -->
+                        <div class="relative flex-grow sm:flex-grow-0 sm:w-48">
+                            <select id="filter_subject" class="w-full pl-3 pr-8 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-250 dark:border-slate-800 text-slate-800 dark:text-slate-250 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all cursor-pointer appearance-none">
+                                <option class="bg-white text-slate-900 dark:bg-[#0c1424] dark:text-zinc-100" value="all">Wszystkie przedmioty</option>
+                                <option class="bg-white text-slate-900 dark:bg-[#0c1424] dark:text-zinc-100" value="Polski">Polski</option>
+                                <option class="bg-white text-slate-900 dark:bg-[#0c1424] dark:text-zinc-100" value="Matematyka">Matematyka</option>
+                                <option class="bg-white text-slate-900 dark:bg-[#0c1424] dark:text-zinc-100" value="Angielski">Angielski</option>
+                                <option class="bg-white text-slate-900 dark:bg-[#0c1424] dark:text-zinc-100" value="Historia">Historia</option>
+                                <option class="bg-white text-slate-900 dark:bg-[#0c1424] dark:text-zinc-100" value="Fizyka">Fizyka</option>
+                                <option class="bg-white text-slate-900 dark:bg-[#0c1424] dark:text-zinc-100" value="Chemia">Chemia</option>
+                                <option class="bg-white text-slate-900 dark:bg-[#0c1424] dark:text-zinc-100" value="Biologia">Biologia</option>
+                                <option class="bg-white text-slate-900 dark:bg-[#0c1424] dark:text-zinc-100" value="Geografia">Geografia</option>
+                                <option class="bg-white text-slate-900 dark:bg-[#0c1424] dark:text-zinc-100" value="Informatyka">Informatyka</option>
+                                <option class="bg-white text-slate-900 dark:bg-[#0c1424] dark:text-zinc-100" value="WOS">WOS</option>
+                            </select>
+                            <span class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-[10px]">&darr;</span>
+                        </div>
+                    </div>
+
+                    <!-- Clear Filters -->
+                    <button id="clear_filters_btn" class="w-full sm:w-auto px-4 py-2 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors bg-slate-100/40 dark:bg-slate-900/40 hover:bg-slate-100 dark:hover:bg-slate-850 rounded-xl cursor-pointer">
+                        Wyczyść
+                    </button>
+                </div>
+
+                <!-- Feed/Posts container -->
+                <div id="forum_posts_feed" class="space-y-4">
+                    <!-- Loaded dynamically via forum.ts -->
+                </div>
+            </section>
+
+            <!-- ================= ZAKŁADKA 2: PYTANIA (EGZAMINY I PYTANIA) ================= -->
+            <section id="view_exams" class="tab-view space-y-6 hidden">
+                <div>
+                    <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Pytania</h1>
+                    <p class="text-sm text-slate-500 dark:text-slate-405">Przeglądaj zadania szkolne pogrupowane według klas i przedmiotów</p>
+                </div>
+
+                <!-- Class tabs container with dynamic integrated hover menus inside exams.ts -->
+                <div id="exams_class_tabs_container" class="grid grid-cols-5 gap-2 bg-slate-100/80 dark:bg-slate-900/60 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-850 relative">
+                     <!-- Populated with hover belts dynamically via exams.ts! -->
+                </div>
+
+                <!-- Mini Forum Area (initially instruction or list) -->
+                <div id="exams_chat_container" class="hidden p-5 rounded-3xl bg-white dark:bg-[#0c1424] border border-slate-200 dark:border-slate-850 shadow-sm space-y-4">
+                    <!-- Dynamic view with Title, post question input and current lists of questions -->
+                </div>
+            </section>
+
+            <!-- ================= ZAKŁADKA 3: PRZYKŁADOWE EGZAMINY ================= -->
+            <section id="view_files" class="tab-view space-y-6 hidden">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                        <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Przykładowe Egzaminy</h1>
+                        <p class="text-sm text-slate-500 dark:text-slate-450">Pobieraj i dodawaj oficjalne arkusze maturalne i sprawdziany (PDF/DOCX)</p>
+                    </div>
+                    <!-- Add File Trigger inside selected category -->
+                    <button id="add_file_trigger_btn" class="cursor-pointer inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-750 font-semibold text-sm text-white shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98]">
+                        <span class="text-sm">+</span> Dodaj plik
+                    </button>
+                </div>
+
+                <!-- Class tabs -->
+                <div class="grid grid-cols-4 gap-2 bg-slate-100/80 dark:bg-slate-900/60 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-850">
+                    <button class="file-class-tab py-2.5 rounded-xl text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-[#ffffff] bg-transparent transition-all cursor-pointer" data-class="1LO">1LO</button>
+                    <button class="file-class-tab py-2.5 rounded-xl text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-[#ffffff] bg-transparent transition-all cursor-pointer" data-class="2LO">2LO</button>
+                    <button class="file-class-tab py-2.5 rounded-xl text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-[#ffffff] bg-transparent transition-all cursor-pointer" data-class="3LO">3LO</button>
+                    <button class="file-class-tab py-2.5 rounded-xl text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-[#ffffff] bg-transparent transition-all cursor-pointer" data-class="4LO">4LO</button>
+                </div>
+
+                <!-- Subjects list (visible after choosing class) -->
+                <div id="files_subjects_section" class="space-y-4">
+                    <p class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Wybierz przedmiot:</p>
+                    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3" id="files_subjects_grid">
+                        <!-- Instantiated via files.ts -->
+                    </div>
+                </div>
+
+                <!-- File List Area -->
+                <div id="files_list_container" class="hidden p-5 rounded-3xl bg-white dark:bg-[#0c1424] border border-slate-200 dark:border-slate-855 shadow-sm space-y-4">
+                    <!-- Loaded dynamically via files.ts -->
+                </div>
+            </section>
+
+            <!-- ================= ZAKŁADKA 4: MOJE KONTO ================= -->
+            <section id="view_account" class="tab-view space-y-6 hidden">
+                <div>
+                    <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Konto Użytkownika</h1>
+                    <p class="text-sm text-slate-500 dark:text-slate-405">Zarządzaj swoim publicznym profilem szkolnym i przeglądaj aktywności</p>
+                </div>
+
+                <!-- User profile editor card -->
+                <div class="p-6 sm:p-8 rounded-3xl bg-white dark:bg-[#0c1424] border border-slate-150 dark:border-slate-850/70 shadow-sm space-y-6">
+                    <div class="flex flex-col sm:flex-row items-center gap-6 pb-6 border-b border-slate-100 dark:border-slate-850">
+                        <!-- Avatar uploader -->
+                        <div class="relative group cursor-pointer w-24 h-24 shrink-0">
+                            <img id="profile_photo_preview" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&auto=format&fit=crop" alt="Profilowe" class="w-full h-full rounded-2xl border-2 border-slate-205 dark:border-slate-700 object-cover shadow-inner" />
+                            <div class="absolute inset-0 bg-black/60 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-[10px] font-bold pointer-events-none">
+                                <svg class="w-5 h-5 mb-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                ZMIEŃ ZDJĘCIE
+                            </div>
+                            <input type="file" id="profile_image_input" class="hidden" accept="image/*" />
+                        </div>
+
+                        <!-- Main information -->
+                        <div class="space-y-4 flex-grow w-full">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <!-- Imię i nazwisko -->
+                                <div>
+                                    <label for="profile_fullname" class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Imię i Nazwisko</label>
+                                    <input type="text" id="profile_fullname" placeholder="np. Jan Kowalski" class="w-full px-4 py-2 text-sm rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-850 dark:text-white placeholder-slate-450 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all" value="Zofia Wiśniewska" />
+                                </div>
+                                <!-- Klasa z listy rozwijanej -->
+                                <div>
+                                    <label for="profile_class" class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Klasa</label>
+                                    <select id="profile_class" class="w-full px-4 py-2 text-sm rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-850 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all cursor-pointer">
+                                        <option value="1LO">1LO - Klasa pierwsza</option>
+                                        <option value="2LO" selected>2LO - Klasa druga</option>
+                                        <option value="3LO">3LO - Klasa trzecia</option>
+                                        <option value="4LO">4LO - Klasa czwarta (maturalna)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Google sync option -->
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs text-slate-500 dark:text-slate-400">Pomyślnie zweryfikowano przez Google OAuth.</span>
+                                <button type="button" id="pull_google_photo_btn" class="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:border-blue-500 hover:text-blue-500 dark:hover:text-blue-400 text-xs font-medium text-slate-600 dark:text-slate-355 transition-all bg-transparent cursor-pointer">
+                                    Pobierz z Google
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Description Bio -->
+                    <div class="space-y-1.5">
+                        <label for="profile_bio" class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Opis Bio</label>
+                        <textarea id="profile_bio" rows="3" placeholder="Dodaj krótki opis o sobie (np. zainteresowania, przygotowanie do matury)" class="w-full px-4 py-3 text-sm rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-850 dark:text-white placeholder-slate-450 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all leading-relaxed">Uczeń liceum. Uwielbiam systematyczną pracę, przygotowuję się do matury i chętnie wymienię się notatkami!</textarea>
+                    </div>
+
+                    <!-- Save Profile Actions -->
+                    <div class="flex items-center justify-end gap-3 pt-2">
+                        <span id="profile_save_status" class="text-xs text-emerald-600 dark:text-emerald-400 hidden font-semibold">Dane zapisane pomyślnie!</span>
+                        <button type="button" id="save_profile_btn" class="cursor-pointer px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-all shadow shadow-blue-500/10">
+                            Zapisz profil
+                        </button>
+                    </div>
+                </div>
+
+                <!-- History of active user activities -->
+                <div class="space-y-4">
+                    <h2 class="text-lg font-bold text-slate-900 dark:text-white">Twoja aktywność (Posty i Pytania)</h2>
+                    <div id="user_activities_feed" class="space-y-3">
+                        <!-- Loaded dynamically based on logged in user activities -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= ZAKŁADKA 5: USTAWIENIA ================= -->
+            <section id="view_settings" class="tab-view space-y-6 hidden">
+                <div>
+                    <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Ustawienia Systemowe</h1>
+                    <p class="text-sm text-slate-500 dark:text-slate-405">Zarządzaj wyglądem, prywatnością, zgodami i powiadomieniami na platformie</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <!-- Section Navigator Links (Desktop side tabs) -->
+                    <nav class="md:col-span-1 flex md:flex-col gap-1 overflow-x-auto md:overflow-x-visible border-b md:border-b-0 md:border-r border-slate-200 dark:border-slate-850 pb-3 md:pb-0 md:pr-4">
+                        <button class="settings-sub-tab px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-left transition-all rounded-xl cursor-pointer w-full shrink-0 md:shrink border-none" data-section="appearance">Wygląd</button>
+                        <button class="settings-sub-tab px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-left transition-all rounded-xl cursor-pointer w-full shrink-0 md:shrink border-none" data-section="notifications">Powiadomienia</button>
+                        <button class="settings-sub-tab px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-left transition-all rounded-xl cursor-pointer w-full shrink-0 md:shrink border-none" data-section="saved">Zapisane</button>
+                        <button class="settings-sub-tab px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-left transition-all rounded-xl cursor-pointer w-full shrink-0 md:shrink border-none" data-section="privacy">Prywatność</button>
+                        <button class="settings-sub-tab px-3.5 py-2 text-xs font-bold uppercase tracking-wider text-left transition-all rounded-xl cursor-pointer w-[#cc4444] text-red-500 hover:text-red-650 w-full shrink-0 md:shrink border-none font-extrabold" data-section="admin">🔐 Admin</button>
+                    </nav>
+
+                    <!-- Settings Dynamic Sub-views Section -->
+                    <div class="md:col-span-3 min-h-64">
+                        
+                        <!-- 1. SEKCDJA: WYGLĄD -->
+                        <div id="settings_section_appearance" class="settings-section space-y-5">
+                            <div class="pb-1 border-b border-slate-100 dark:border-slate-850">
+                                <h3 class="font-bold text-slate-900 dark:text-white text-md">Personalizacja Wyglądu</h3>
+                                <p class="text-xs text-slate-450 mt-0.5">Dostosuj odcień motywu do komfortu oczu podczas nauki wieczorami</p>
+                            </div>
+
+                            <div class="p-4 rounded-2xl bg-white dark:bg-[#0c1424] border border-slate-150 dark:border-slate-850 shadow-sm flex items-center justify-between">
+                                <div class="space-y-0.5 max-w-sm">
+                                    <span class="block font-bold text-sm text-slate-800 dark:text-white">Ciemny motyw systemowy</span>
+                                    <span class="block text-xs text-slate-500">Wyłącz, aby przełączyć na ultra-przejrzysty biały motyw dzienny</span>
+                                </div>
+                                <button type="button" id="settings_theme_toggle" class="cursor-pointer relative inline-flex h-6.5 w-12 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none bg-slate-200">
+                                    <span id="theme_toggle_dot" class="pointer-events-none inline-block h-5.5 w-5.5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"></span>
+                                </button>
+                            </div>
+
+                            <div class="p-4 rounded-2xl bg-blue-50/20 dark:bg-blue-950/10 border border-blue-100/40 dark:border-blue-900/40 text-xs leading-relaxed space-y-1 text-slate-600 dark:text-slate-400">
+                                <span class="font-semibold text-slate-800 dark:text-slate-250 block">Zaleta Ciemnego Motywu:</span>
+                                Neutralny ciemnoniebieski kontrast redukuje zmęczenie wzroku (migreny cyfrowe) podczas rozwiązywania zadań późno w nocy.
+                            </div>
+                        </div>
+
+                        <!-- 2. SEKCDJA: POWIADOMIENIA -->
+                        <div id="settings_section_notifications" class="settings-section space-y-5 hidden">
+                            <div class="pb-1 border-b border-slate-100 dark:border-slate-850">
+                                <h3 class="font-bold text-slate-900 dark:text-white text-md">Ustawienia Powiadomień</h3>
+                                <p class="text-xs text-slate-450 mt-0.5">Włącz lub wyłącz reakcje o nowej zawartości</p>
+                            </div>
+
+                            <div class="space-y-3">
+                                <!-- Powiadomienie 1 -->
+                                <div class="p-4 rounded-2xl bg-white dark:bg-[#0c1424] border border-slate-150 dark:border-slate-850 shadow-sm flex items-center justify-between">
+                                    <div class="space-y-0.5 max-w-sm">
+                                        <span class="block font-bold text-sm text-[#384252] dark:text-[#ffffff]">Nowe posty i zapytania na forum</span>
+                                        <span class="block text-xs text-slate-500">Otrzymuj alerty o ciekawych wpisach na ogólnym tablicy</span>
+                                    </div>
+                                    <input type="checkbox" id="notif_new_posts" class="w-4 h-4 text-blue-600 border-slate-300 dark:border-slate-800 rounded focus:ring-blue-500 cursor-pointer" checked />
+                                </div>
+
+                                <!-- Powiadomienie 2 -->
+                                <div class="p-4 rounded-2xl bg-white dark:bg-[#0c1424] border border-slate-150 dark:border-slate-850 shadow-sm flex items-center justify-between">
+                                    <div class="space-y-0.5 max-w-sm">
+                                        <span class="block font-bold text-sm text-[#384252] dark:text-[#ffffff]">Odpowiedzi na Twoje pytania</span>
+                                        <span class="block text-xs text-slate-505">Dostawaj powiadomienie, gdy ktoś rozwiąże Twój błąd w zadaniu</span>
+                                    </div>
+                                    <input type="checkbox" id="notif_replies" class="w-4 h-4 text-blue-600 border-slate-300 dark:border-slate-800 rounded focus:ring-blue-500 cursor-pointer" checked />
+                                </div>
+
+                                <!-- Powiadomienie 3 -->
+                                <div class="p-4 rounded-2xl bg-white dark:bg-[#0c1424] border border-slate-150 dark:border-slate-850 shadow-sm flex items-center justify-between">
+                                    <div class="space-y-0.5 max-w-sm">
+                                        <span class="block font-bold text-sm text-[#384252] dark:text-[#ffffff]">Nowe arkusze i przykładowe egzaminy</span>
+                                        <span class="block text-xs text-slate-550">Informuj mnie o dodaniu oficjalnego testu przez innych rówieśników</span>
+                                    </div>
+                                    <input type="checkbox" id="notif_files" class="w-4 h-4 text-blue-600 border-slate-300 dark:border-slate-800 rounded focus:ring-blue-500 cursor-pointer" checked />
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 3. SEKCDJA: ZAPISANE -->
+                        <div id="settings_section_saved" class="settings-section space-y-5 hidden">
+                            <div class="pb-1 border-b border-slate-100 dark:border-slate-850">
+                                <h3 class="font-bold text-slate-900 dark:text-white text-md">Zapisane Posty (Twoja Kolekcja)</h3>
+                                <p class="text-xs text-slate-450 mt-0.5">Posty, które zapisałeś zakładką w celach szybkiego powtórzenia przed kartkówką</p>
+                            </div>
+
+                            <div id="saved_posts_container" class="space-y-3">
+                                <!-- Instantiated dynamically in settings.ts -->
+                            </div>
+                        </div>
+
+                        <!-- 4. SEKCDJA: PRYWATNOŚĆ -->
+                        <div id="settings_section_privacy" class="settings-section space-y-5 hidden">
+                            <div class="pb-1 border-b border-slate-105 dark:border-slate-850">
+                                <h3 class="font-bold text-slate-900 dark:text-white text-md">Ustawienia Prywatności i RODO</h3>
+                                <p class="text-xs text-slate-450 mt-0.5">Kontroluj widoczność swoich danych osobowych oraz zgód RODO w szkole</p>
+                            </div>
+
+                            <div class="space-y-3.5">
+                                <!-- Privacy Toggle 1 -->
+                                <div class="p-4 rounded-xl bg-white dark:bg-[#0c1424] border border-slate-150 dark:border-slate-850 flex items-center justify-between">
+                                    <div class="space-y-0.5 max-w-xs sm:max-w-sm">
+                                        <span class="block font-semibold text-sm text-slate-800 dark:text-white">Publiczny profil dla uczniów</span>
+                                        <span class="block text-xs text-slate-500">Zezwalaj innym zalogowanym uczniom z liceum na przeglądanie Twojego bio</span>
+                                    </div>
+                                    <input type="checkbox" id="privacy_profile_visibility" class="w-4 h-4 text-blue-600 border-slate-300 dark:border-slate-800 rounded focus:ring-blue-500 cursor-pointer" checked />
+                                </div>
+
+                                <!-- Privacy Toggle 2 -->
+                                <div class="p-4 rounded-xl bg-white dark:bg-[#0c1424] border border-slate-150 dark:border-slate-850 flex items-center justify-between">
+                                    <div class="space-y-0.5 max-w-xs sm:max-w-sm">
+                                        <span class="block font-semibold text-sm text-slate-800 dark:text-white">Prywatny adres e-mail</span>
+                                        <span class="block text-xs text-slate-500">Ukryj mój adres pocztowy Google przed pozostałymi użytkownikami na forum</span>
+                                    </div>
+                                    <input type="checkbox" id="privacy_hide_email" class="w-4 h-4 text-blue-600 border-slate-300 dark:border-slate-800 rounded focus:ring-blue-500 cursor-pointer" checked />
+                                </div>
+
+                                <!-- Privacy Toggle 3 -->
+                                <div class="p-4 rounded-xl bg-white dark:bg-[#0c1424] border border-slate-150 dark:border-slate-850 flex items-center justify-between">
+                                    <div class="space-y-0.5 max-w-xs sm:max-w-sm">
+                                        <span class="block font-semibold text-sm text-slate-805 dark:text-white">Zgoda na RODO</span>
+                                        <span class="block text-xs text-slate-450">Wyrażam zgodę na przetwarzanie danych z profilu w celach dydaktycznych platformy</span>
+                                    </div>
+                                    <input type="checkbox" id="privacy_gdpr_checkbox" class="w-4 h-4 text-blue-600 border-slate-300 dark:border-slate-800 rounded focus:ring-blue-500 cursor-pointer" checked />
+                                </div>
+                            </div>
+
+                            <div class="p-4 rounded-xl border border-red-200 dark:border-red-950/40 bg-red-50/15 p-4 text-xs text-red-650 dark:text-red-400 space-y-2">
+                                <span class="font-bold block">Strefa Niebezpieczna (Usunięcie Konta):</span>
+                                <p>Usunięcie konta jest natychmiastowe i bezpowrotne. Twoje posty zostaną zanonimizowane, a zdjęcie profilowe i e-mail wyczyszczone.</p>
+                                <button type="button" id="delete_account_btn" class="px-3.5 py-1.5 rounded-lg border border-red-200 dark:border-red-900/60 text-xs font-semibold hover:bg-red-100 dark:hover:bg-red-950/40 cursor-pointer inline-flex items-center gap-1 transition-all">
+                                    Trwale usuń moje konto
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 5. SEKCDJA: ADMIN PANEL -->
+                        <div id="settings_section_admin" class="settings-section space-y-5 hidden">
+                            <div class="pb-1 border-b border-slate-105 dark:border-slate-850">
+                                <h3 class="font-bold text-red-650 dark:text-red-400 text-md">Konsola Administratora Systemu</h3>
+                                <p class="text-xs text-slate-450 mt-0.5">Wprowadź hasło administratora, aby uzyskać uprawnienia moderacyjne i zarządzać społecznością</p>
+                            </div>
+
+                            <div class="space-y-4">
+                                <!-- Pass Auth Card -->
+                                <div class="p-4 rounded-xl bg-white dark:bg-[#0c1424] border border-slate-150 dark:border-slate-850 space-y-3 shadow-xs">
+                                    <label class="block text-xs font-bold text-slate-450 uppercase tracking-wide">Hasło Weryfikacyjne Administratora</label>
+                                    <div class="flex gap-2.5">
+                                        <input type="password" id="settings_admin_password_input" placeholder="Wprowadź hasło administratora" class="flex-grow px-4 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-850 dark:text-white" />
+                                        <button type="button" id="unlock_admin_mode_btn" class="px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs shrink-0 cursor-pointer">Zaloguj jako Admin</button>
+                                    </div>
+                                    <p id="admin_unlock_status" class="text-[11px] text-emerald-500 font-bold hidden">✓ Tryb Administratora Aktywny! Posiadasz teraz pełne uprawnienia usuwania postów i banowania użytkowników.</p>
+                                </div>
+
+                                <!-- Dynamic Admin Controls (Lists of users to ban or mute) of currently active commenters/posters -->
+                                <div id="admin_users_panel" class="p-4 rounded-xl bg-white dark:bg-[#0c1424] border border-slate-150 dark:border-slate-850 space-y-3 shadow-xs secret-admin-controls hidden">
+                                    <div class="border-b border-slate-100 dark:border-slate-800 pb-2">
+                                        <span class="block font-bold text-xs uppercase text-slate-800 dark:text-slate-200 tracking-wide">Szybkie Zarządzanie i Dyscyplina Uczniów</span>
+                                        <span class="block text-[10px] text-slate-400">Poniżej znajduje się lista aktywnych adresów e-mail na platformie. Możesz banować lub wyciszać użytkowników.</span>
+                                    </div>
+                                    
+                                    <div id="admin_users_list_container" class="space-y-2 max-h-56 overflow-y-auto">
+                                        <!-- Rendered dynamically -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================= ZAKŁADKA 6: PANEL ADMINISTRATORA ================= -->
+            <section id="view_admin" class="tab-view space-y-6 hidden">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-850">
+                    <div>
+                        <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+                            <span class="text-rose-500 font-extrabold">&sect;</span> Panel Admin
+                        </h1>
+                        <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-450">Konsola moderacji kont uczniów, blokad (banów), wyciszeń (mutów) i bazy danych platformy</p>
+                    </div>
+                    <button id="admin_logout_direct_btn" class="cursor-pointer px-4 py-2.5 rounded-xl border border-red-250 dark:border-red-950 text-red-550 dark:text-red-400 text-xs font-bold hover:bg-red-50/50 dark:hover:bg-red-950/20 transition-all flex items-center gap-1.5 shrink-0">
+                        <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+                        <span>Wyloguj z Panelu Admina</span>
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <!-- Quick stats section -->
+                    <div class="md:col-span-1 space-y-4">
+                        <div class="p-4 rounded-2xl bg-slate-50 dark:bg-[#0c1424] border border-slate-150 dark:border-slate-850/60">
+                            <span class="block text-[9px] font-extrabold uppercase tracking-widest text-[#245ce6] dark:text-[#5283ff]">Wszyscy zarejestrowani</span>
+                            <div id="admin_stat_total_users" class="text-3xl font-extrabold text-slate-900 dark:text-white mt-1">4</div>
+                            <span class="text-[9px] text-slate-450 block mt-0.5">Uczniowie z bazy localStorage</span>
+                        </div>
+                        <div class="p-4 rounded-2xl bg-rose-50/20 dark:bg-rose-950/10 border border-rose-200/50 dark:border-rose-950/40">
+                            <span class="block text-[9px] font-extrabold uppercase tracking-widest text-red-650 dark:text-red-400">Zablokowani (Zbanowani)</span>
+                            <div id="admin_stat_banned" class="text-3xl font-extrabold text-red-650 dark:text-red-400 mt-1">0</div>
+                            <span class="text-[9px] text-slate-450 block mt-0.5">Uniemożliwiono ponowne zalogowanie</span>
+                        </div>
+                        <div class="p-4 rounded-2xl bg-amber-50/20 dark:bg-[#0c1424] border border-amber-200/50 dark:border-slate-800">
+                            <span class="block text-[9px] font-extrabold uppercase tracking-widest text-amber-600 dark:text-amber-450">Wyciszeni (Muted)</span>
+                            <div id="admin_stat_muted" class="text-3xl font-extrabold text-amber-500 mt-1">0</div>
+                            <span class="text-[9px] text-slate-450 block mt-0.5">Zablokowane tworzenie postów</span>
+                        </div>
+                    </div>
+
+                    <!-- Core Users List / Accounts Grid -->
+                    <div class="md:col-span-3 space-y-4 bg-white dark:bg-[#0c1424] p-5 sm:p-6 rounded-3xl border border-slate-200 dark:border-slate-850">
+                        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-850 pb-3">
+                            <div>
+                                <h3 class="font-extrabold text-slate-900 dark:text-white text-md">Kartoteka Kont Uczniów</h3>
+                                <p class="text-xs text-slate-450">Modyfikuj uprawnienia, nakładaj kary lub bezpowrotnie usuwaj konta z bazy danych</p>
+                            </div>
+                            <button id="admin_create_mock_users_btn" type="button" class="cursor-pointer text-[10px] font-bold px-3 py-1.5 rounded-lg bg-blue-100 dark:bg-blue-950 text-blue-650 dark:text-blue-400 hover:bg-blue-200/70 transition-colors">
+                                Wygeneruj testowe konta
+                            </button>
+                        </div>
+
+                        <!-- Users Cards list container -->
+                        <div id="admin_dashboard_users_list" class="space-y-3 max-h-[480px] overflow-y-auto pr-1">
+                            <!-- Populated dynamically via controller -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- ================= VIEW USER PROFILE MODAL ================= -->
+    <div id="user_profile_modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4 overflow-y-auto">
+        <div class="w-full max-w-lg bg-white dark:bg-[#0c1424] border border-slate-200 dark:border-slate-850 rounded-3xl overflow-hidden p-6 sm:p-8 space-y-5 animate-in fade-in duration-100">
+            <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-850 pb-4">
+                <h3 class="font-extrabold text-slate-900 dark:text-white text-lg">Profil Użytkownika</h3>
+                <button type="button" id="close_profile_modal_btn" class="font-extrabold text-slate-400 dark:text-slate-550 hover:text-slate-200 text-lg cursor-pointer">✕</button>
+            </div>
+
+            <!-- Profile Info Card -->
+            <div class="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800">
+                <img id="profile_modal_avatar" src="" alt="Avatar" class="w-16 h-16 rounded-full border border-slate-200 dark:border-slate-700 object-cover shrink-0" />
+                <div class="min-w-0">
+                    <h4 id="profile_modal_fullname" class="font-extrabold text-base text-slate-900 dark:text-white truncate">Nazwa użytkownika</h4>
+                    <p id="profile_modal_email" class="text-xs text-slate-450 dark:text-slate-400 truncate">email@szkola.edu.pl</p>
+                    <div class="flex items-center gap-2 mt-2">
+                        <span id="profile_modal_class" class="px-2.5 py-0.5 rounded-lg bg-blue-100 dark:bg-blue-950/50 text-[10px] font-bold text-blue-600 dark:text-blue-400">Klasa: -</span>
+                        <span id="profile_modal_role_badge" class="px-2.5 py-0.5 rounded-lg bg-rose-100 dark:bg-rose-950/50 text-[10px] font-bold text-rose-600 dark:text-rose-450 hidden">Admin</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- About / Bio section -->
+            <div class="space-y-1.5">
+                <span class="block text-xs font-semibold text-slate-400 uppercase tracking-widest">O mnie / Bio:</span>
+                <p id="profile_modal_bio" class="text-xs text-slate-650 dark:text-slate-300 leading-relaxed italic whitespace-pre-wrap p-3.5 rounded-2xl bg-slate-50/50 dark:bg-slate-900/20 border border-slate-150 dark:border-slate-850/60 font-medium">Użytkownik nie podał jeszcze żadnego opisu w swoim bio.</p>
+            </div>
+
+            <!-- User Activity lists -->
+            <div class="space-y-2.5 max-h-56 overflow-y-auto">
+                <span class="block text-xs font-semibold text-slate-400 uppercase tracking-widest">Aktywność na forum:</span>
+                <div id="profile_modal_activity_feed" class="space-y-2">
+                    <!-- Loaded dynamically -->
+                </div>
+            </div>
+
+            <div class="flex justify-end pt-2 border-t border-slate-100 dark:border-slate-850">
+                <button type="button" id="close_profile_modal_btn_alt" class="cursor-pointer px-5 py-2 rounded-xl bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-350 hover:bg-slate-205 text-xs font-bold transition-colors">Zamknij profil</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= ADD POST MODAL PANEL ================= -->
+    <div id="add_post_modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4 overflow-y-auto">
+        <div class="w-full max-w-lg bg-white dark:bg-[#0c1424] border border-slate-200 dark:border-slate-850 rounded-3xl overflow-hidden p-6 sm:p-8 space-y-5 animate-in fade-in duration-100">
+            <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-850 pb-4">
+                <h3 class="font-extrabold text-slate-900 dark:text-white text-lg">Stwórz nowy post</h3>
+                <button type="button" class="close-modal-btn font-extrabold text-slate-400 dark:text-slate-550 hover:text-slate-200 text-lg cursor-pointer">✕</button>
+            </div>
+
+            <!-- Form Body -->
+            <form id="add_post_form" class="space-y-4">
+                <!-- Tytuł -->
+                <div class="space-y-1">
+                    <label for="post_form_title" class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Tytuł posta</label>
+                    <input type="text" id="post_form_title" placeholder="np. Zadanie z funkcji kwadratowej - pomoc!" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" required />
+                </div>
+
+                <!-- Klasa i Przedmiot -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="space-y-1">
+                        <label for="post_form_class" class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Klasa docelowa</label>
+                        <select id="post_form_class" class="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-850 dark:text-white cursor-pointer focus:ring-1 focus:ring-blue-500">
+                            <option value="1LO">1LO</option>
+                            <option value="2LO" selected>2LO</option>
+                            <option value="3LO">3LO</option>
+                            <option value="4LO">4LO</option>
+                        </select>
+                    </div>
+                    <div class="space-y-1">
+                        <label for="post_form_subject" class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Przedmiot</label>
+                        <select id="post_form_subject" class="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-850 dark:text-white cursor-pointer focus:ring-1 focus:ring-blue-500">
+                            <option value="Polski">Polski</option>
+                            <option value="Matematyka" selected>Matematyka</option>
+                            <option value="Angielski">Angielski</option>
+                            <option value="Historia">Historia</option>
+                            <option value="Fizyka">Fizyka</option>
+                            <option value="Chemia">Chemia</option>
+                            <option value="Biologia">Biologia</option>
+                            <option value="Geografia">Geografia</option>
+                            <option value="Informatyka">Informatyka</option>
+                            <option value="WOS">WOS</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Treść -->
+                <div class="space-y-1">
+                    <label for="post_form_content" class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Treść wpisu</label>
+                    <textarea id="post_form_content" rows="4" placeholder="Wpisz swoje pytanie lub notatkę..." class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" required></textarea>
+                </div>
+
+                <!-- Załącznik File Uploader -->
+                <div class="space-y-1">
+                    <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Załącznik (Opcjonalnie PDF/DOCX)</label>
+                    <div id="post_file_dropzone" class="border border-dashed border-slate-250 dark:border-slate-800 rounded-xl p-4 flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900/40 hover:bg-slate-100 dark:hover:bg-slate-900/60 cursor-pointer transition-all">
+                        <i data-lucide="book-open" class="w-6 h-6 text-slate-400 mb-1.5"></i>
+                        <span class="text-xs font-semibold text-slate-650 dark:text-slate-355" id="post_file_label">Kliknij lub upuść plik tutaj</span>
+                        <span class="text-[9px] text-slate-450 mt-0.5">Dozwolone formaty: PDF, DOCX (Maks. 15MB)</span>
+                        <input type="file" id="post_file_input" class="hidden" accept=".pdf,.docx" />
+                    </div>
+                </div>
+
+                <!-- Submit / Cancel -->
+                <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-850">
+                    <button type="button" class="close-modal-btn cursor-pointer px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors">Anuluj</button>
+                    <button type="submit" class="cursor-pointer px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow shadow-blue-500/10">Dodaj na forum</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= ADD FILE MODAL PANEL ================= -->
+    <div id="add_file_modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4 overflow-y-auto">
+        <div class="w-full max-w-lg bg-white dark:bg-[#0c1424] border border-slate-200 dark:border-slate-850 rounded-3xl overflow-hidden p-6 sm:p-8 space-y-5 animate-in fade-in duration-100">
+            <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-850 pb-4">
+                <h3 class="font-extrabold text-slate-900 dark:text-white text-lg">Dodaj nowy arkusz / plik</h3>
+                <button type="button" class="close-file-modal-btn font-extrabold text-slate-400 dark:text-slate-550 hover:text-slate-200 text-lg cursor-pointer">✕</button>
+            </div>
+
+            <!-- Form Body -->
+            <form id="add_file_form" class="space-y-4">
+                <!-- Nazwa pliku -->
+                <div class="space-y-1">
+                    <label for="file_form_name" class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Nazwa arkusza / zakres materiału</label>
+                    <input type="text" id="file_form_name" placeholder="np. Sprawdzian z hydrostatyki z odpowiedziami" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" required />
+                </div>
+
+                <!-- Klasa i Przedmiot -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="space-y-1">
+                        <label for="file_form_class" class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Klasa docelowa</label>
+                        <select id="file_form_class" class="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-850 dark:text-white cursor-pointer focus:ring-1 focus:ring-blue-500">
+                            <option value="1LO">1LO</option>
+                            <option value="2LO" selected>2LO</option>
+                            <option value="3LO">3LO</option>
+                            <option value="4LO">4LO</option>
+                        </select>
+                    </div>
+                    <div class="space-y-1">
+                        <label for="file_form_subject" class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Przedmiot</label>
+                        <select id="file_form_subject" class="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-850 dark:text-white cursor-pointer focus:ring-1 focus:ring-blue-500">
+                            <option value="Polski">Polski</option>
+                            <option value="Matematyka" selected>Matematyka</option>
+                            <option value="Angielski">Angielski</option>
+                            <option value="Historia">Historia</option>
+                            <option value="Fizyka">Fizyka</option>
+                            <option value="Chemia">Chemia</option>
+                            <option value="Biologia">Biologia</option>
+                            <option value="Geografia">Geografia</option>
+                            <option value="Informatyka">Informatyka</option>
+                            <option value="WOS">WOS</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Opis szczegółowy -->
+                <div class="space-y-1">
+                    <label for="file_form_desc" class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold">Czego dotyczy ten plik?</label>
+                    <input type="text" id="file_form_desc" placeholder="np. Zadania z kartkówki grupy A i B wraz z naniesionym kluczem oceniania" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" required />
+                </div>
+
+                <!-- Druga sekcja Dropzone -->
+                <div class="space-y-1">
+                    <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Załącz plik dokumentu</label>
+                    <div id="document_file_dropzone" class="border border-dashed border-slate-250 dark:border-slate-800 rounded-xl p-4 flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900/40 hover:bg-slate-100 dark:hover:bg-slate-900/60 cursor-pointer transition-all">
+                        <i data-lucide="book-open" class="w-6 h-6 text-slate-400 mb-1.5"></i>
+                        <span class="text-xs font-semibold text-slate-650 dark:text-slate-350" id="document_file_label">Kliknij lub upuść arkusz tutaj</span>
+                        <span class="text-[9px] text-slate-450 mt-0.5">Dozwolone formaty: PDF, DOCX (Maks. 15MB)</span>
+                        <input type="file" id="document_file_input" class="hidden" accept=".pdf,.docx" required />
+                    </div>
+                </div>
+
+                <!-- Submit / Cancel -->
+                <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-850">
+                    <button type="button" class="close-file-modal-btn cursor-pointer px-4 py-2 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors">Anuluj</button>
+                    <button type="submit" class="cursor-pointer px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-750 text-white font-semibold text-xs shadow">Wgraj plik</button>
+                </div>
+            </form>
+         </div>
+    </div>
+
+    <!-- Active Router Controller Entrypoint Script -->
+    <script type="module" src="ts/router.ts"></script>
+</body>
+</html>

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="pl" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Regulamin - SchoolForum</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script>
+        // Synchronize theme with localStorage
+        const cachedTheme = localStorage.getItem('theme') || 'dark';
+        if (cachedTheme === 'light') {
+            document.documentElement.classList.remove('dark');
+        } else {
+            document.documentElement.classList.add('dark');
+        }
+    </script>
+</head>
+<body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 min-h-screen py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-3xl mx-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl overflow-hidden p-8 sm:p-12 transition-all duration-300">
+        <!-- Header -->
+        <div class="border-b border-slate-200 dark:border-slate-800 pb-6 mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+                <div class="flex items-center gap-2 text-indigo-600 dark:text-blue-400 font-bold text-xl tracking-tight mb-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse"></span>
+                    SchoolForum
+                </div>
+                <h1 id="terms_title" class="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-4xl">Regulamin Serwisu</h1>
+                <p id="entry_date" class="text-sm text-slate-500 dark:text-slate-400 mt-2">Ostatnia aktualizacja: 21 maja 2026 r.</p>
+            </div>
+            <a href="/index.html" class="inline-flex items-center gap-2 text-sm font-medium text-indigo-600 dark:text-blue-400 hover:underline">
+                Powrót do logowania
+            </a>
+        </div>
+
+        <!-- Content -->
+        <div class="space-y-6 text-slate-700 dark:text-slate-300 leading-relaxed">
+            <section class="space-y-3">
+                <h2 class="text-xl font-bold text-slate-900 dark:text-white">1. Postanowienia Ogólne</h2>
+                <p>
+                    Regulamin ten określa zasady korzystania z platformy społecznościowo-edukacyjnej <strong>SchoolForum</strong> (zwanej dalej "Serwisem"), przeznaczonej wyłącznie dla uczniów, nauczycieli i absolwentów I Liceum Ogólnokształcącego im. Mikołaja Kopernika w Warszawie.
+                </p>
+                <p>
+                    Dostęp do Serwisu mają wyłącznie zweryfikowani użytkownicy, którzy dokonali pomyślnego uwierzytelnienia za pomocą konta Google skojarzonego z domeną szkolną lub posiadających uprawnienia wyznaczone przez administratora Serwisu.
+                </p>
+            </section>
+
+            <section class="space-y-3">
+                <h2 class="text-xl font-bold text-slate-900 dark:text-white">2. Zasady Korzystania z Platformy</h2>
+                <p>Użytkownik zobowiązuje się do korzystania z Serwisu w sposób zgodny z prawem, dobrymi obyczajami oraz niniejszym Regulaminem. Każdy zarejestrowany użytkownik jest zobowiązany do:</p>
+                <ul class="list-disc pl-5 space-y-1">
+                    <li>Przestrzegania zasad kultury osobistej w dyskusjach na forum (netykieta).</li>
+                    <li>Wypełniania danych profilowych (imię, nazwisko, klasa) zgodnie z prawem i stanem faktycznym.</li>
+                    <li>Służy jako pomoc dydaktyczna oraz narzędzie do ułatwienia organizacji nauki.</li>
+                </ul>
+            </section>
+
+            <section class="space-y-3">
+                <h2 class="text-xl font-bold text-slate-900 dark:text-white font-semibold text-red-600 dark:text-red-400">3. Treści Niedozwolone i Zakazane</h2>
+                <p>Kategorycznie zakazuje się publikowania i przesyłania w Serwisie treści:</p>
+                <ul class="list-disc pl-5 space-y-1 text-red-750 dark:text-red-300">
+                    <li>O charakterze obraźliwym, wulgarnym, rasistowskim, ksenofobicznym, homofobicznym lub nawołujących do nienawiści.</li>
+                    <li>Służących do nękania, zastraszania lub cyberprzemocy wobec innych uczniów, nauczycieli bądź innych osób (cyberbullying).</li>
+                    <li>Niezwiązanych ze społecznością szkolną, o charakterze spamu, reklam komercyjnych lub politycznych marketingu politycznego.</li>
+                    <li>Przedstawiających rozwiązania czynnych, chronionych testów lub nielegalnych form ściągania, naruszających zasady uczciwości akademickiej.</li>
+                    <li>Treści o charakterze pornograficznym lub drastycznym.</li>
+                </ul>
+            </section>
+
+            <section class="space-y-3">
+                <h2 class="text-xl font-bold text-slate-900 dark:text-white">4. Prawa Autorskie i Materiały Edukacyjne</h2>
+                <p>
+                    Dzieląc się plikami, materiałami, opracowaniami i arkuszami egzaminacyjnymi na łamach platformy, użytkownik oświadcza, że posiada do nich prawa autorskie lub zgodę na ich niekomercyjne rozpowszechnianie na potrzeby społeczności szkolnej.
+                </p>
+                <p>
+                    Materiały te mogą być wykorzystywane wyłącznie do osobistego użytku edukacyjnego (prawo do dozwolonego użytku osobistego). Zabrania się ich dalszego kopiowania w celach komercyjnych bez zgody autorów.
+                </p>
+            </section>
+
+            <section class="space-y-3">
+                <h2 class="text-xl font-bold text-slate-900 dark:text-white">5. Dozwolone Formaty i Rozmiary Plików</h2>
+                <p>System wspiera załączanie plików wyłącznie w celach edukacyjnych o parametrach:</p>
+                <ul class="list-disc pl-5 space-y-1">
+                    <li><strong>Obsługiwane formaty:</strong> Dokumenty <strong>PDF</strong> (<code>.pdf</code>) oraz dokumenty tekstowe Word <strong>DOCX</strong> (<code>.docx</code>).</li>
+                    <li><strong>Maksymalny rozmiar pliku:</strong> 15 MB (Megabajtów) na pojedynczy plik.</li>
+                    <li><strong>Skanowanie antywirusowe:</strong> Wszelkie wgrane pliki mogą być weryfikowane automatycznie pod kątem obecności złośliwego oprogramowania. Zabrania się wgrywania archiwów zabezpieczonych hasłem lub plików wykonywalnych (np. <code>.exe</code>, <code>.bat</code>).</li>
+                </ul>
+            </section>
+
+            <section class="space-y-3">
+                <h2 class="text-xl font-bold text-slate-900 dark:text-white">6. Konsekwencje Naruszenia Regulaminu</h2>
+                <p>W przypadku nieprzestrzegania niniejszego Regulaminu, Administrator zastrzega sobie prawo do podjęcia następujących kroków dyscyplinarnych:</p>
+                <ol class="list-decimal pl-5 space-y-1">
+                    <li>Upomnienie słowne lub za pośrednictwem poczty e-mail.</li>
+                    <li>Usunięcie lub edycja spornego posta, komentarza bądź pliku bez zgody autora.</li>
+                    <li>Tymczasowe zablokowanie możliwości publikowania postów/plików (kara wyciszenia na forum).</li>
+                    <li>Stałe zablokowanie konta użytkownika w Serwisie oraz zgłoszenie incydentu do Dyrekcji Szkoły lub odpowiednich wychowawców.</li>
+                </ol>
+            </section>
+
+            <section class="space-y-3">
+                <h2 class="text-xl font-bold text-slate-900 dark:text-white">7. Administracja i Zasady Usuwania Kont</h2>
+                <p>
+                    Użytkownik ma pełne prawo do usunięcia swojego konta w każdym momencie w zakładce "Konto &rarr; Profil" lub poprzez wysłanie wniosku na adres e-mail Administratora. Usunięcie konta skutkuje nieodwracalnym skasowaniem danych profilowych. 
+                </p>
+                <p>
+                    Administrator zastrzega sobie prawo do okresowych przerw technicznych, modyfikowania interfejsu oraz zmiany zapisów Regulaminu. O wszelkich zmianach regulaminu zarejestrowani użytkownicy zostaną powiadomieni z 7-dniowym wyprzedzeniem.
+                </p>
+            </section>
+        </div>
+
+        <!-- Footer -->
+        <div class="border-t border-slate-200 dark:border-slate-800 mt-8 pt-6 text-center text-xs text-slate-400">
+            &copy; 2026 SchoolForum. Regulamin obowiązuje od momentu wejścia w życie.
+        </div>
+    </div>
+</body>
+</html>

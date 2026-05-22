@@ -1,0 +1,678 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { createIcons, MessageSquare, BookOpen, GraduationCap, User, Settings, LogOut, Sun, Moon, HelpCircle } from "lucide";
+import { IsLoggedIn, GetCurrentUser, SaveUser, LogOutUser, GetAllRegisteredUsers, IsAdmin } from "./auth";
+import { RenderForumFeed, AddForumPost, GetForumPosts } from "./forum";
+import { InitExamsController, GetExamQuestions } from "./exams";
+import { InitFilesController, AddExamFile, GetExamFiles, RenderFilesModule } from "./files";
+import { InitExamboxController } from "./exambox";
+import { InitSettingsController, RenderAdminDashboard, SyncAdminTabVisibility } from "./settings";
+
+// Holds actively selected tab ID
+let activeTab: string = "forum";
+
+/**
+ * Switch top-level viewport display between SPAs
+ */
+export function SwitchTab(tabId: string): void {
+  activeTab = tabId;
+
+  // Update tabs visual select indicators (sidebar on desktop AND bottom-nav on mobile)
+  const tabButtons = document.querySelectorAll(".tab-btn");
+  tabButtons.forEach(btn => {
+    const btnTab = btn.getAttribute("data-tab");
+    if (btnTab === activeTab) {
+      // Light mode and dark mode classes for active tab button
+      btn.classList.add("text-blue-600", "dark:text-blue-400", "bg-slate-50", "dark:bg-slate-850");
+      btn.classList.remove("text-slate-650", "dark:text-slate-300");
+    } else {
+      btn.classList.remove("text-blue-600", "dark:text-blue-400", "bg-slate-50", "dark:bg-slate-850");
+      btn.classList.add("text-slate-650", "dark:text-slate-300");
+    }
+  });
+
+  // Toggle visible sections
+  const views = ["forum", "exams", "exambox", "files", "account", "settings", "admin"];
+  views.forEach(v => {
+    const section = document.getElementById(`view_${v}`);
+    if (section) {
+      if (v === activeTab) {
+        section.classList.remove("hidden");
+      } else {
+        section.classList.add("hidden");
+      }
+    }
+  });
+
+  // Run modules initializers on tab activated
+  switch (activeTab) {
+    case "forum":
+      RenderForumFeed();
+      break;
+    case "exams":
+      InitExamsController();
+      break;
+    case "exambox":
+      InitExamboxController();
+      break;
+    case "files":
+      InitFilesController();
+      break;
+    case "account":
+      LoadProfileEditor();
+      RenderUserActivities();
+      break;
+    case "settings":
+      InitSettingsController();
+      break;
+    case "admin":
+      RenderAdminDashboard();
+      break;
+  }
+}
+
+/**
+ * Populates editor fields inside Tab 4 — Konto
+ */
+function LoadProfileEditor(): void {
+  const user = GetCurrentUser();
+  
+  const fullnameInput = document.getElementById("profile_fullname") as HTMLInputElement;
+  const classSelect = document.getElementById("profile_class") as HTMLSelectElement;
+  const bioTextarea = document.getElementById("profile_bio") as HTMLTextAreaElement;
+  const previewImg = document.getElementById("profile_photo_preview") as HTMLImageElement;
+
+  if (fullnameInput) fullnameInput.value = user.fullname;
+  if (classSelect) classSelect.value = user.schoolClass;
+  if (bioTextarea) bioTextarea.value = user.bio;
+  if (previewImg) previewImg.src = user.avatar;
+}
+
+/**
+ * Propagates updated fullname and avatar across all posts, comments, questions and answers
+ */
+function PropagateProfileUpdateToFeed(userEmail: string, newName: string, newAvatar: string): void {
+  if (!userEmail) return;
+  const emailLower = userEmail.toLowerCase();
+
+  // 1. Forum posts and comments
+  try {
+    const posts = GetForumPosts();
+    let postsChanged = false;
+    posts.forEach(post => {
+      if (post.authorEmail && post.authorEmail.toLowerCase() === emailLower) {
+        post.authorName = newName;
+        post.authorAvatar = newAvatar;
+        postsChanged = true;
+      }
+      post.comments.forEach(comm => {
+        if (comm.authorEmail && comm.authorEmail.toLowerCase() === emailLower) {
+          comm.authorName = newName;
+          comm.authorAvatar = newAvatar;
+          postsChanged = true;
+        }
+      });
+    });
+    if (postsChanged) {
+      localStorage.setItem("sf_posts", JSON.stringify(posts));
+    }
+  } catch (e) {
+    console.warn("Could not propagate profile updates to forum posts:", e);
+  }
+
+  // 2. Exam questions and answers
+  try {
+    const allQs = GetExamQuestions();
+    let qsChanged = false;
+    allQs.forEach(q => {
+      if (q.authorEmail && q.authorEmail.toLowerCase() === emailLower) {
+        q.authorName = newName;
+        q.authorAvatar = newAvatar;
+        qsChanged = true;
+      }
+      q.answers.forEach(ans => {
+        if (ans.authorEmail && ans.authorEmail.toLowerCase() === emailLower) {
+          ans.authorName = newName;
+          ans.authorAvatar = newAvatar;
+          qsChanged = true;
+        }
+      });
+    });
+    if (qsChanged) {
+      localStorage.setItem("sf_exams_questions", JSON.stringify(allQs));
+    }
+  } catch (e) {
+    console.warn("Could not propagate profile updates to exam questions:", e);
+  }
+}
+
+/**
+ * Saves profile data altered by student
+ */
+function SaveProfileData(): void {
+  const fullnameInput = document.getElementById("profile_fullname") as HTMLInputElement;
+  const classSelect = document.getElementById("profile_class") as HTMLSelectElement;
+  const bioTextarea = document.getElementById("profile_bio") as HTMLTextAreaElement;
+  const statusLabel = document.getElementById("profile_save_status");
+
+  if (fullnameInput && classSelect && bioTextarea) {
+    const user = GetCurrentUser();
+    user.fullname = fullnameInput.value.trim();
+    user.schoolClass = classSelect.value;
+    user.bio = bioTextarea.value.trim();
+
+    SaveUser(user);
+    SyncUserDisplayHeader();
+
+    // Propagate changes instantly across database
+    PropagateProfileUpdateToFeed(user.email, user.fullname, user.avatar);
+
+    if (statusLabel) {
+      statusLabel.classList.remove("hidden");
+      setTimeout(() => {
+        statusLabel.classList.add("hidden");
+      }, 3000);
+    }
+  }
+}
+
+/**
+ * Re-populates widgets inside page header with current user details
+ */
+function SyncUserDisplayHeader(): void {
+  const user = GetCurrentUser();
+  
+  // Sidebar previews
+  const sidebarFullname = document.getElementById("sidebar_fullname");
+  const sidebarEmail = document.getElementById("sidebar_email");
+  const sidebarAvatar = document.getElementById("sidebar_avatar") as HTMLImageElement;
+
+  // Mobile layouts previews
+  const mobileAvatar = document.getElementById("mobile_avatar") as HTMLImageElement;
+
+  if (sidebarFullname) sidebarFullname.textContent = user.fullname;
+  if (sidebarEmail) sidebarEmail.textContent = user.email;
+  if (sidebarAvatar) sidebarAvatar.src = user.avatar;
+  if (mobileAvatar) mobileAvatar.src = user.avatar;
+}
+
+/**
+ * Query and render user's historical actions inside Profile Tab 4
+ */
+function RenderUserActivities(): void {
+  const container = document.getElementById("user_activities_feed");
+  if (!container) return;
+
+  const user = GetCurrentUser();
+
+  // Load user posts
+  const allPosts = GetForumPosts();
+  const userPosts = allPosts.filter(p => p.authorEmail === user.email);
+
+  // Load user exam questions
+  const allQuestions = GetExamQuestions();
+  const userQs = allQuestions.filter(q => q.authorName === user.fullname);
+
+  if (userPosts.length === 0 && userQs.length === 0) {
+    container.innerHTML = `
+      <div class="p-6 text-center rounded-2xl bg-white dark:bg-[#0c1424] border border-slate-150 dark:border-slate-850">
+        <p class="text-xs text-slate-500">Brak odnotowanej aktywności naukowej. Dodaj post na forum lub zadaj pytanie w sekcji egzaminów!</p>
+      </div>
+    `;
+    return;
+  }
+
+  let htmlCombined = "";
+
+  // Render Post bullets
+  userPosts.forEach(post => {
+    htmlCombined += `
+      <div class="p-4 rounded-xl bg-white dark:bg-[#0c1424] border border-slate-150 dark:border-slate-850 shadow-2xs flex items-center justify-between gap-3">
+        <div class="truncate">
+          <span class="text-[9px] font-bold text-blue-500 uppercase tracking-widest block mb-0.5">Post na forum &bull; ${post.subject}</span>
+          <h4 class="font-bold text-xs sm:text-sm text-slate-850 dark:text-white truncate leading-tight">${post.title}</h4>
+          <span class="text-[9px] text-slate-400 mt-0.5 block">${post.date} &middot; Polubień: ${post.likes}</span>
+        </div>
+        <button class="view-my-activity-btn text-xs font-semibold text-[#1d50c7] hover:underline shrink-0" data-view-tab="forum">Otwórz</button>
+      </div>
+    `;
+  });
+
+  // Render Question bullets
+  userQs.forEach(q => {
+    htmlCombined += `
+      <div class="p-4 rounded-xl bg-white dark:bg-[#0c1424] border border-slate-150 dark:border-slate-850 shadow-2xs flex items-center justify-between gap-3">
+        <div class="truncate">
+          <span class="text-[9px] font-bold text-indigo-500 uppercase tracking-widest block mb-0.5 font-semibold">Pytanie z sprawdzianu &bull; ${q.subjectId}</span>
+          <h4 class="font-bold text-xs sm:text-sm text-slate-850 dark:text-white truncate leading-tight">${q.title}</h4>
+          <span class="text-[9px] text-slate-400 mt-0.5 block">${q.date} &middot; Odpowiedzi: ${q.answers.length}</span>
+        </div>
+        <button class="view-my-activity-btn text-xs font-semibold text-[#1d50c7] hover:underline shrink-0" data-view-tab="exams">Otwórz</button>
+      </div>
+    `;
+  });
+
+  container.innerHTML = htmlCombined;
+
+  // Bind activity view triggers
+  document.querySelectorAll(".view-my-activity-btn").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      const targetTab = (e.currentTarget as HTMLElement).getAttribute("data-view-tab");
+      if (targetTab) {
+        SwitchTab(targetTab);
+      }
+    });
+  });
+}
+
+// ON DOM LOAD INITIALIZER
+document.addEventListener("DOMContentLoaded", () => {
+  // 1. ROUTE GUARD: Ensure user is logged in
+  if (!IsLoggedIn()) {
+    window.location.href = "index.html";
+    return;
+  }
+
+  const currentUser = GetCurrentUser();
+  const banned = JSON.parse(localStorage.getItem("sf_banned_users") || "[]");
+  if (currentUser && currentUser.email && banned.includes(currentUser.email.toLowerCase())) {
+    alert("Konto zablokowane:\nTwoje konto zostało trwale zbanowane i zablokowane przez administratora platformy.");
+    LogOutUser();
+    return;
+  }
+
+  // 2. Initialize Lucide Icons for HTML wrappers
+  createIcons({
+    icons: {
+      MessageSquare,
+      BookOpen,
+      GraduationCap,
+      User,
+      Settings,
+      LogOut,
+      Sun,
+      Moon,
+      HelpCircle
+    }
+  });
+
+  // 3. Setup core user details inside headers
+  SyncUserDisplayHeader();
+  SyncAdminTabVisibility();
+
+  // 4. Bind tabs buttons click events
+  const tabButtons = document.querySelectorAll(".tab-btn");
+  tabButtons.forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      const selectTab = (e.currentTarget as HTMLElement).getAttribute("data-tab");
+      if (selectTab) {
+        SwitchTab(selectTab);
+      }
+    });
+  });
+
+  // 5. Bind logout button events (both Sidebar & Mobile top bars)
+  const lBtn = document.getElementById("logout_btn");
+  const mLBtn = document.getElementById("mobile_logout_btn");
+  if (lBtn) lBtn.addEventListener("click", LogOutUser);
+  if (mLBtn) mLBtn.addEventListener("click", LogOutUser);
+
+  // Bind global theme switcher buttons
+  const toggleGlobalTheme = () => {
+    const isDark = document.documentElement.classList.contains("dark");
+    if (isDark) {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+    } else {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+    }
+  };
+
+  const gThemeBtn = document.getElementById("global_theme_toggle_btn");
+  const mThemeBtn = document.getElementById("mobile_theme_toggle_btn");
+  if (gThemeBtn) gThemeBtn.addEventListener("click", toggleGlobalTheme);
+  if (mThemeBtn) mThemeBtn.addEventListener("click", toggleGlobalTheme);
+
+  // 6. Bind profile modifiers action inside Account Tab
+  const saveProfBtn = document.getElementById("save_profile_btn");
+  if (saveProfBtn) saveProfBtn.addEventListener("click", SaveProfileData);
+
+  // Avatar pick trigger
+  const profPreview = document.getElementById("profile_photo_preview");
+  const profInput = document.getElementById("profile_image_input") as HTMLInputElement;
+  if (profPreview && profInput) {
+    profPreview.addEventListener("click", () => profInput.click());
+    profInput.addEventListener("change", (e) => {
+      const filesList = (e.target as HTMLInputElement).files;
+      if (filesList && filesList[0]) {
+        const fileObj = filesList[0];
+        const reader = new FileReader();
+        reader.onload = (loadEvent) => {
+          const imageBase64 = loadEvent.target?.result as string;
+          // Update preview visually
+          (profPreview as HTMLImageElement).src = imageBase64;
+          // Add to stored dataset
+          const user = GetCurrentUser();
+          user.avatar = imageBase64;
+          SaveUser(user);
+          SyncUserDisplayHeader();
+
+          // Propagate image changes across feeds
+          PropagateProfileUpdateToFeed(user.email, user.fullname, user.avatar);
+        };
+        reader.readAsDataURL(fileObj);
+      }
+    });
+  }
+
+  const pullGoogleBtn = document.getElementById("pull_google_photo_btn");
+  if (pullGoogleBtn) {
+    pullGoogleBtn.addEventListener("click", () => {
+      const user = GetCurrentUser();
+      // Reset back to original high quality avatar
+      user.avatar = "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=256&auto=format&fit=crop";
+      SaveUser(user);
+      LoadProfileEditor();
+      SyncUserDisplayHeader();
+
+      // Propagate image changes across feeds
+      PropagateProfileUpdateToFeed(user.email, user.fullname, user.avatar);
+      alert("Pomyślnie zsynchronizowano i zaktualizowano zdjęcie profilowe bezpośrednio z Twojego konta Google!");
+    });
+  }
+
+  // 7. Modals controller: Forum Add Post
+  const addPostModal = document.getElementById("add_post_modal");
+  const addPostTrigger = document.getElementById("add_post_btn");
+  const closeModalsCmd = document.querySelectorAll(".close-modal-btn");
+  const addPostForm = document.getElementById("add_post_form") as HTMLFormElement;
+
+  if (addPostModal && addPostTrigger && addPostForm) {
+    addPostTrigger.addEventListener("click", () => {
+      const currentUser = GetCurrentUser();
+      const muted = JSON.parse(localStorage.getItem("sf_muted_users") || "[]");
+      if (muted.includes(currentUser.email.toLowerCase())) {
+        alert("BŁĄD: Twoje konto zostało wyciszone przez administratora i nie możesz pisać postów.");
+        return;
+      }
+      addPostModal.classList.remove("hidden");
+    });
+
+    closeModalsCmd.forEach(cb => {
+      cb.addEventListener("click", () => {
+        addPostModal.classList.add("hidden");
+        addPostForm.reset();
+        const label = document.getElementById("post_file_label");
+        if (label) label.textContent = "Kliknij lub upuść plik tutaj";
+      });
+    });
+
+    // Custom simulated attachment selection inside forum post modal
+    const postDropzone = document.getElementById("post_file_dropzone");
+    const postFileInput = document.getElementById("post_file_input") as HTMLInputElement;
+    const postFileLabel = document.getElementById("post_file_label");
+
+    if (postDropzone && postFileInput && postFileLabel) {
+      postDropzone.addEventListener("click", () => postFileInput.click());
+      postFileInput.addEventListener("change", (e) => {
+        const fileObj = (e.target as HTMLInputElement).files?.[0];
+        if (fileObj) {
+          postFileLabel.textContent = `Wybrano: ${fileObj.name} (${(fileObj.size / (1024 * 1024)).toFixed(1)} MB)`;
+        }
+      });
+    }
+
+    addPostForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const title = (document.getElementById("post_form_title") as HTMLInputElement).value.trim();
+      const scClass = (document.getElementById("post_form_class") as HTMLSelectElement).value;
+      const subject = (document.getElementById("post_form_subject") as HTMLSelectElement).value;
+      const content = (document.getElementById("post_form_content") as HTMLTextAreaElement).value.trim();
+      
+      let attachmentName: string | null = null;
+      let attachmentSize: string | null = null;
+
+      const fileObj = postFileInput.files?.[0];
+      if (fileObj) {
+        attachmentName = fileObj.name;
+        attachmentSize = `${(fileObj.size / (1024 * 1024)).toFixed(1)} MB`;
+      }
+
+      const newPost = AddForumPost(title, content, subject, scClass, attachmentName, attachmentSize);
+      if (!newPost) {
+        return; // Muted, do not clear form or close modal
+      }
+      
+      // Close and clear modal
+      addPostModal.classList.add("hidden");
+      addPostForm.reset();
+      if (postFileLabel) postFileLabel.textContent = "Kliknij lub upuść plik tutaj";
+
+      // Re-draw feeds
+      RenderForumFeed();
+    });
+  }
+
+  // 8. Modals controller: Files Upload Sheet
+  const addFileModal = document.getElementById("add_file_modal");
+  const addFileTrigger = document.getElementById("add_file_trigger_btn");
+  const closeFileModals = document.querySelectorAll(".close-file-modal-btn");
+  const addFileForm = document.getElementById("add_file_form") as HTMLFormElement;
+
+  if (addFileModal && addFileTrigger && addFileForm) {
+    addFileTrigger.addEventListener("click", () => {
+      const currentUser = GetCurrentUser();
+      const muted = JSON.parse(localStorage.getItem("sf_muted_users") || "[]");
+      if (muted.includes(currentUser.email.toLowerCase())) {
+        alert("BŁĄD: Twoje konto zostało wyciszone przez administratora i nie możesz wgrywać plików.");
+        return;
+      }
+      addFileModal.classList.remove("hidden");
+    });
+
+    closeFileModals.forEach(cb => {
+      cb.addEventListener("click", () => {
+        addFileModal.classList.add("hidden");
+        addFileForm.reset();
+        const label = document.getElementById("document_file_label");
+        if (label) label.textContent = "Kliknij lub upuść arkusz tutaj";
+      });
+    });
+
+    // Custom drag and drop file selector in exams sheets
+    const docDropzone = document.getElementById("document_file_dropzone");
+    const docFileInput = document.getElementById("document_file_input") as HTMLInputElement;
+    const docFileLabel = document.getElementById("document_file_label");
+
+    if (docDropzone && docFileInput && docFileLabel) {
+      docDropzone.addEventListener("click", () => docFileInput.click());
+      docFileInput.addEventListener("change", (e) => {
+        const fileObj = (e.target as HTMLInputElement).files?.[0];
+        if (fileObj) {
+          docFileLabel.textContent = `Wybrano: ${fileObj.name} (${(fileObj.size / (1024 * 1024)).toFixed(1)} MB)`;
+        }
+      });
+    }
+
+    addFileForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const currentUser = GetCurrentUser();
+      const muted = JSON.parse(localStorage.getItem("sf_muted_users") || "[]");
+      if (muted.includes(currentUser.email.toLowerCase())) {
+        alert("BŁĄD: Twoje konto zostało wyciszone przez administratora i nie możesz wgrywać plików.");
+        return;
+      }
+
+      const fName = (document.getElementById("file_form_name") as HTMLInputElement).value.trim();
+      const fClass = (document.getElementById("file_form_class") as HTMLSelectElement).value;
+      const fSub = (document.getElementById("file_form_subject") as HTMLSelectElement).value;
+      const fDesc = (document.getElementById("file_form_desc") as HTMLInputElement).value.trim();
+
+      const fileObj = docFileInput.files?.[0];
+      if (fileObj) {
+        const attachmentName = fileObj.name;
+        const attachmentSize = `${(fileObj.size / (1024 * 1024)).toFixed(1)} MB`;
+
+        AddExamFile(fClass, fSub, fName, fDesc, attachmentName, attachmentSize);
+        
+        // Success alert and cleanup
+        addFileModal.classList.add("hidden");
+        addFileForm.reset();
+        if (docFileLabel) docFileLabel.textContent = "Kliknij lub upuść arkusz tutaj";
+
+        // Re-draw files repository feed to view changes instantly
+        RenderFilesModule();
+        alert(`Pomyślnie dodano i opublikowano arkusz egzaminacyjny w dziale ${fClass} &rarr; ${fSub}!`);
+      } else {
+        alert("Do publikacji wymagane jest załączenie pliku PDF lub DOCX.");
+      }
+    });
+  }
+
+  // 9. Forum Filtering triggers (onselect changes)
+  const filterClass = document.getElementById("filter_class") as HTMLSelectElement;
+  const filterSubject = document.getElementById("filter_subject") as HTMLSelectElement;
+  const clearFiltersBtn = document.getElementById("clear_filters_btn");
+
+  const runForumFilter = () => {
+    const classVal = filterClass ? filterClass.value : "all";
+    const subVal = filterSubject ? filterSubject.value : "all";
+    RenderForumFeed(classVal, subVal);
+  };
+
+  if (filterClass) filterClass.addEventListener("change", runForumFilter);
+  if (filterSubject) filterSubject.addEventListener("change", runForumFilter);
+  
+  if (clearFiltersBtn) {
+    clearFiltersBtn.addEventListener("click", () => {
+      if (filterClass) filterClass.value = "all";
+      if (filterSubject) filterSubject.value = "all";
+      RenderForumFeed("all", "all");
+    });
+  }
+
+  // 11. Bind profile modal close button interactions
+  const pModal = document.getElementById("user_profile_modal");
+  const pCloseBtn = document.getElementById("close_profile_modal_btn");
+  const pCloseBtnAlt = document.getElementById("close_profile_modal_btn_alt");
+
+  const hideProfileModal = () => {
+    if (pModal) pModal.classList.add("hidden");
+  };
+
+  if (pCloseBtn) pCloseBtn.addEventListener("click", hideProfileModal);
+  if (pCloseBtnAlt) pCloseBtnAlt.addEventListener("click", hideProfileModal);
+  if (pModal) {
+    pModal.addEventListener("click", (e) => {
+      if (e.target === pModal) hideProfileModal();
+    });
+  }
+
+  // 10. Boot up the initial SPA Tab View
+  SwitchTab("forum");
+});
+
+/**
+ * Global triggers binder to pull and show user profiles inside an elegant modal popover overlay
+ */
+export function BindUserProfileTriggersGlobal(): void {
+  const triggers = document.querySelectorAll(".view-user-profile-trigger");
+  triggers.forEach(elem => {
+    if (elem.getAttribute("data-profile-click-bound") === "true") return;
+    elem.setAttribute("data-profile-click-bound", "true");
+
+    elem.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const targetEmail = (e.currentTarget as HTMLElement).getAttribute("data-user-email");
+      if (!targetEmail) return;
+
+      const users = GetAllRegisteredUsers();
+      let foundUser = users.find(u => u.email.toLowerCase() === targetEmail.toLowerCase());
+
+      if (!foundUser) {
+        const posts = GetForumPosts();
+        const firstPost = posts.find(p => p.authorEmail.toLowerCase() === targetEmail.toLowerCase());
+        if (firstPost) {
+          foundUser = {
+            email: targetEmail,
+            fullname: firstPost.authorName,
+            schoolClass: firstPost.schoolClass,
+            avatar: firstPost.authorAvatar,
+            bio: "Klasyczny profil aktywnego ucznia Kopernika.",
+            role: "student",
+            bookmarkedPosts: [],
+            joinedDate: firstPost.date.substring(0, 10)
+          };
+        } else {
+          const textName = (e.currentTarget as HTMLElement).textContent || "Uczeń Kopernika";
+          foundUser = {
+            email: targetEmail,
+            fullname: textName,
+            schoolClass: "Ogólna",
+            avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=256&auto=format&fit=crop",
+            bio: "Uczeń naszej szkoły.",
+            role: "student",
+            bookmarkedPosts: [],
+            joinedDate: "2026-05-22"
+          };
+        }
+      }
+
+      const modalAvatar = document.getElementById("profile_modal_avatar") as HTMLImageElement;
+      const modalFullname = document.getElementById("profile_modal_fullname");
+      const modalEmail = document.getElementById("profile_modal_email");
+      const modalClass = document.getElementById("profile_modal_class");
+      const modalRoleBadge = document.getElementById("profile_modal_role_badge");
+      const modalBio = document.getElementById("profile_modal_bio");
+      const modalFeed = document.getElementById("profile_modal_activity_feed");
+
+      if (modalAvatar) modalAvatar.src = foundUser.avatar;
+      if (modalFullname) modalFullname.textContent = foundUser.fullname;
+      if (modalEmail) modalEmail.textContent = foundUser.email;
+      if (modalClass) modalClass.textContent = `Klasa: ${foundUser.schoolClass}`;
+
+      if (modalRoleBadge) {
+        if (foundUser.role === "admin" || foundUser.email.toLowerCase() === "admin@kopernik.edu.pl") {
+          modalRoleBadge.classList.remove("hidden");
+        } else {
+          modalRoleBadge.classList.add("hidden");
+        }
+      }
+
+      if (modalBio) {
+        modalBio.textContent = foundUser.bio || "Użytkownik nie podał jeszcze żadnego opisu w swoim bio.";
+      }
+
+      if (modalFeed) {
+        const posts = GetForumPosts();
+        const userPosts = posts.filter(p => p.authorEmail && p.authorEmail.toLowerCase() === targetEmail.toLowerCase());
+
+        if (userPosts.length === 0) {
+          modalFeed.innerHTML = `<p class="text-[11px] text-slate-400 dark:text-slate-500 italic py-2">Brak udostępnionych postów na forum.</p>`;
+        } else {
+          modalFeed.innerHTML = userPosts.map(p => `
+            <div class="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-150 dark:border-slate-850/80">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-[9px] font-bold text-blue-500 uppercase tracking-wide bg-blue-50 dark:bg-blue-950/30 px-1.5 py-0.5 rounded">${p.subject}</span>
+                <span class="text-[9px] text-slate-400">${p.date}</span>
+              </div>
+              <h5 class="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">${p.title}</h5>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">${p.content}</p>
+            </div>
+          `).join("");
+        }
+      }
+
+      const modalEl = document.getElementById("user_profile_modal");
+      if (modalEl) {
+        modalEl.classList.remove("hidden");
+      }
+    });
+  });
+}
+
+(window as any).BindUserProfileTriggersGlobal = BindUserProfileTriggersGlobal;

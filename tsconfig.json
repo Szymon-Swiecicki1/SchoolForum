@@ -1,0 +1,6 @@
+{
+  "name": "SchoolForum",
+  "description": "Platforma społecznościowo-edukacyjna dla uczniów liceum z forum, pytaniami egzaminacyjnymi, plikami do pobrania i pełną integracją.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

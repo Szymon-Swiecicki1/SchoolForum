@@ -1,0 +1,738 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { SchoolUser, GetCurrentUser, SaveUser, LogOutUser, IsAdmin, GetAllRegisteredUsers, SaveAllRegisteredUsers, customConfirm } from "./auth";
+import { GetForumPosts, SaveForumPosts, RenderForumFeed } from "./forum";
+
+// Track currently active Settings panel
+let activeSection: string = "appearance";
+
+/**
+ * Switch between settings sub-sections.
+ */
+export function SwitchSettingsSection(sectionId: string): void {
+  activeSection = sectionId;
+
+  // Toggle active styling of navigation link buttons
+  const subTabs = document.querySelectorAll(".settings-sub-tab");
+  subTabs.forEach(tab => {
+    const dataSection = tab.getAttribute("data-section");
+    if (dataSection === activeSection) {
+      tab.classList.remove("text-slate-500", "dark:text-slate-500", "bg-transparent");
+      tab.classList.add("bg-blue-50/70", "dark:bg-blue-950/40", "text-blue-600", "dark:text-blue-400");
+    } else {
+      tab.classList.remove("bg-blue-50/70", "dark:bg-blue-950/40", "text-blue-600", "dark:text-blue-400");
+      tab.classList.add("text-slate-500", "dark:text-slate-500", "bg-transparent");
+    }
+  });
+
+  // Show/Hide section divs
+  const sections = ["appearance", "notifications", "saved", "privacy", "admin"];
+  sections.forEach(s => {
+    const element = document.getElementById(`settings_section_${s}`);
+    if (element) {
+      if (s === activeSection) {
+        element.classList.remove("hidden");
+      } else {
+        element.classList.add("hidden");
+      }
+    }
+  });
+
+  // If entering "saved" tab, re-render bookmarks lists
+  if (activeSection === "saved") {
+    RenderSavedPosts();
+  }
+
+  // If entering "admin" tab, re-render admin users list
+  if (activeSection === "admin") {
+    RenderAdminUsersList();
+  }
+}
+
+/**
+ * Renders list of active participants for moderator actions
+ */
+export function RenderAdminUsersList(): void {
+  const container = document.getElementById("admin_users_list_container");
+  if (!container) return;
+
+  const currentUser = GetCurrentUser();
+  const posts = GetForumPosts();
+  
+  // Collect unique users
+  const usersMap = new Map<string, { fullname: string; avatar: string }>();
+  
+  // Set default initial users the platform features
+  usersMap.set("szymonherb1234@gmail.com", {
+    fullname: "Szymon Wiśniewski",
+    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&auto=format&fit=crop"
+  });
+
+  usersMap.set("krzysztof@kopernik.edu.pl", {
+    fullname: "Krzysztof Kowalczyk",
+    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=256&auto=format&fit=crop"
+  });
+
+  usersMap.set("zofia@kopernik.edu.pl", {
+    fullname: "Zofia Wiśniewska",
+    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=256&auto=format&fit=crop"
+  });
+
+  // Collect from posts dynamically
+  posts.forEach(p => {
+    usersMap.set(p.authorEmail.toLowerCase(), { fullname: p.authorName, avatar: p.authorAvatar });
+    p.comments.forEach(c => {
+      // Pick up commenters and give them a standard mock email
+      const authorEmail = c.authorName.toLowerCase().replace(/\s+/g, "") + "@schoolforum.pl";
+      usersMap.set(authorEmail, { fullname: c.authorName, avatar: c.authorAvatar });
+    });
+  });
+
+  const banned = JSON.parse(localStorage.getItem("sf_banned_users") || "[]");
+  const muted = JSON.parse(localStorage.getItem("sf_muted_users") || "[]");
+
+  let html = "";
+  usersMap.forEach((meta, email) => {
+    const isSelf = email.toLowerCase() === currentUser.email.toLowerCase();
+    const isBanned = banned.includes(email.toLowerCase());
+    const isMuted = muted.includes(email.toLowerCase());
+
+    html += `
+      <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-150 dark:border-slate-800 flex items-center justify-between gap-3 text-xs leading-normal">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <img src="${meta.avatar}" alt="avatar" class="view-user-profile-trigger cursor-pointer w-8.5 h-8.5 rounded-full object-cover border border-slate-200 dark:border-slate-700 shrink-0" data-user-email="${email}" title="Zobacz profil" />
+          <div class="min-w-0">
+            <div class="font-extrabold text-slate-800 dark:text-slate-205 flex items-center gap-1.5 shrink-0">
+              <span class="view-user-profile-trigger cursor-pointer hover:underline truncate" data-user-email="${email}" title="Zobacz profil">${meta.fullname}</span>
+              ${isSelf ? '<span class="px-1 text-[8px] font-bold bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400 rounded">Ty</span>' : ''}
+              ${isBanned ? '<span class="px-1.5 py-0.5 text-[8px] font-bold bg-red-100 dark:bg-red-950 text-red-650 dark:text-red-400 rounded">ZBANOWANY</span>' : ''}
+              ${isMuted ? '<span class="px-1.5 py-0.5 text-[8px] font-bold bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400 rounded">WYCISZONY</span>' : ''}
+            </div>
+            <div class="view-user-profile-trigger cursor-pointer text-[9px] text-slate-400 dark:text-slate-500 truncate mt-0.5 hover:underline" data-user-email="${email}" title="Zobacz profil">${email}</div>
+          </div>
+        </div>
+
+        ${!isSelf ? `
+          <div class="flex items-center gap-1.5 shrink-0 select-none">
+            <button class="view-user-profile-trigger px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-850 bg-white dark:bg-[#0c1424] text-slate-500 dark:text-slate-400 hover:text-blue-500 hover:border-blue-300 dark:hover:border-blue-900 cursor-pointer text-[10px] font-bold transition-all" data-user-email="${email}" title="Pokaż profil">
+              Profil
+            </button>
+            <!-- Mute/Unmute Toggle -->
+            <button class="admin-mute-toggle-btn px-2.5 py-1.5 rounded-lg font-bold text-[10px] cursor-pointer border transition-all ${isMuted ? 'bg-amber-100 dark:bg-amber-950 border-amber-250 dark:border-amber-900 text-amber-600 dark:text-amber-400' : 'bg-white dark:bg-[#0c1424] border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-amber-500'}" data-email="${email}">
+              ${isMuted ? 'Dopuść' : 'Wycisz'}
+            </button>
+            <!-- Ban/Unban Toggle -->
+            <button class="admin-ban-toggle-btn px-2.5 py-1.5 rounded-lg font-bold text-[10px] cursor-pointer border transition-all ${isBanned ? 'bg-green-100 dark:bg-green-950 border-green-250 dark:border-green-900 text-green-600 dark:text-green-400' : 'bg-red-50 dark:bg-red-950/25 border-red-200 dark:border-red-950/40 text-red-500 hover:bg-red-600 hover:text-white hover:border-red-600'}" data-email="${email}">
+              ${isBanned ? 'Odbanuj' : 'Zbanuj'}
+            </button>
+          </div>
+        ` : '<span>-</span>'}
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+
+  // Bind dynamic user profile click events
+  if (typeof (window as any).BindUserProfileTriggersGlobal === "function") {
+    (window as any).BindUserProfileTriggersGlobal();
+  }
+
+  // Bind toggling events
+  document.querySelectorAll(".admin-mute-toggle-btn").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      const email = (e.currentTarget as HTMLElement).getAttribute("data-email");
+      if (email) {
+        const list = JSON.parse(localStorage.getItem("sf_muted_users") || "[]");
+        const idx = list.indexOf(email.toLowerCase());
+        if (idx === -1) {
+          list.push(email.toLowerCase());
+          alert(`Użytkownik ${email} został pomyślnie wyciszony! Nie będzie mógł pisać postów.`);
+        } else {
+          list.splice(idx, 1);
+          alert(`Uczniowi o adresie ${email} przywrócono możliwość wypowiadania się.`);
+        }
+        localStorage.setItem("sf_muted_users", JSON.stringify(list));
+        RenderAdminUsersList();
+        RenderAdminDashboard();
+        RenderForumFeed();
+      }
+    });
+  });
+
+  document.querySelectorAll(".admin-ban-toggle-btn").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      const email = (e.currentTarget as HTMLElement).getAttribute("data-email");
+      if (email) {
+        const list = JSON.parse(localStorage.getItem("sf_banned_users") || "[]");
+        const idx = list.indexOf(email.toLowerCase());
+        if (idx === -1) {
+          customConfirm("STAŁA BLOKADA KONTA", `Czy na pewno chcesz zbanować konto o adresie ${email}?\nUżytkownik zostanie natychmiastowo zablokowany.`, () => {
+            list.push(email.toLowerCase());
+            localStorage.setItem("sf_banned_users", JSON.stringify(list));
+            RenderAdminUsersList();
+            RenderAdminDashboard();
+            RenderForumFeed();
+          });
+        } else {
+          list.splice(idx, 1);
+          localStorage.setItem("sf_banned_users", JSON.stringify(list));
+          RenderAdminUsersList();
+          RenderAdminDashboard();
+          RenderForumFeed();
+        }
+      }
+    });
+  });
+}
+
+/**
+ * Renders the saved posts collection inside settings
+ */
+export function RenderSavedPosts(): void {
+  const container = document.getElementById("saved_posts_container");
+  if (!container) return;
+
+  const currentUser = GetCurrentUser();
+  const allPosts = GetForumPosts();
+
+  // Find posts that are bookmarked by the current user
+  const savedList = allPosts.filter(p => currentUser.bookmarkedPosts.includes(p.id));
+
+  if (savedList.length === 0) {
+    container.innerHTML = `
+      <div class="py-8 text-center rounded-2xl bg-slate-50 dark:bg-slate-900/40 border border-slate-150 dark:border-slate-800">
+        <p class="text-xs text-slate-500">Nie zapisałeś jeszcze żadnego posta. Kliknij ikonę zakładki pod postami na forum.</p>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = savedList.map(post => {
+    return `
+      <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-150 dark:border-slate-800 flex items-center justify-between gap-4">
+        <div class="min-w-0">
+          <span class="inline-block px-2 py-0.5 rounded-md text-[9px] font-bold bg-blue-100 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400 uppercase tracking-wider mb-1">
+            ${post.subject} &middot; ${post.schoolClass}
+          </span>
+          <h4 class="font-bold text-xs sm:text-sm text-slate-800 dark:text-slate-200 truncate leading-snug">${post.title}</h4>
+          <p class="text-[10px] text-slate-450 mt-1">Autor: ${post.authorName} &middot; ${post.date}</p>
+        </div>
+        
+        <!-- Action Remove Bookmark -->
+        <button class="remove-saved-post-btn p-2 rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors cursor-pointer shrink-0" data-post-id="${post.id}" title="Usuń z zapisanych">
+          <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+        </button>
+      </div>
+    `;
+  }).join("");
+
+  // Bind unsave buttons
+  document.querySelectorAll(".remove-saved-post-btn").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      const postId = (e.currentTarget as HTMLElement).getAttribute("data-post-id");
+      if (postId) {
+        const user = GetCurrentUser();
+        const bIndex = user.bookmarkedPosts.indexOf(postId);
+        if (bIndex !== -1) {
+          user.bookmarkedPosts.splice(bIndex, 1);
+          SaveUser(user);
+          // Redraw panel
+          RenderSavedPosts();
+          // Sync changes to home page forum if needed
+          RenderForumFeed();
+        }
+      }
+    });
+  });
+}
+
+/**
+ * Initializes and binds interactions on the Settings View
+ */
+// Track if event listeners have already been bound to persistent DOM elements in Settings
+let settingsInitialized = false;
+
+/**
+ * Initializes and binds interactions on the Settings View
+ */
+export function InitSettingsController(): void {
+  // Always synchronize display properties and values on tab activated
+  const documentIsDark = document.documentElement.classList.contains("dark");
+  const appearanceToggle = document.getElementById("settings_theme_toggle");
+  const dot = document.getElementById("theme_toggle_dot");
+
+  const syncThemeToggleUI = (dark: boolean) => {
+    if (appearanceToggle && dot) {
+      if (dark) {
+        appearanceToggle.classList.remove("bg-slate-200");
+        appearanceToggle.classList.add("bg-blue-600");
+        dot.classList.remove("translate-x-0");
+        dot.classList.add("translate-x-5.5");
+      } else {
+        appearanceToggle.classList.remove("bg-blue-600");
+        appearanceToggle.classList.add("bg-slate-200");
+        dot.classList.remove("translate-x-5.5");
+        dot.classList.add("translate-x-0");
+      }
+    }
+  };
+
+  syncThemeToggleUI(documentIsDark);
+
+  const getCheckedElements = () => {
+    return {
+      posts: document.getElementById("notif_new_posts") as HTMLInputElement,
+      replies: document.getElementById("notif_replies") as HTMLInputElement,
+      files: document.getElementById("notif_files") as HTMLInputElement
+    };
+  };
+
+  const loadNotifState = () => {
+    const saved = localStorage.getItem("sf_notif_prefs");
+    const elems = getCheckedElements();
+    if (saved) {
+      try {
+        const prefs = JSON.parse(saved);
+        if (elems.posts) elems.posts.checked = !!prefs.posts;
+        if (elems.replies) elems.replies.checked = !!prefs.replies;
+        if (elems.files) elems.files.checked = !!prefs.files;
+      } catch (_) {}
+    }
+  };
+
+  const saveNotifState = () => {
+    const elems = getCheckedElements();
+    const prefs = {
+      posts: elems.posts ? elems.posts.checked : true,
+      replies: elems.replies ? elems.replies.checked : true,
+      files: elems.files ? elems.files.checked : true
+    };
+    localStorage.setItem("sf_notif_prefs", JSON.stringify(prefs));
+  };
+
+  loadNotifState();
+
+  const privacyProfile = document.getElementById("privacy_profile_visibility") as HTMLInputElement;
+  const privacyHideEmail = document.getElementById("privacy_hide_email") as HTMLInputElement;
+  const privacyGdpr = document.getElementById("privacy_gdpr_checkbox") as HTMLInputElement;
+
+  const loadPrivacyState = () => {
+    const user = GetCurrentUser();
+    const savedOptions = localStorage.getItem(`sf_privacy_${user.email}`);
+    if (savedOptions) {
+      try {
+        const priv = JSON.parse(savedOptions);
+        if (privacyProfile) privacyProfile.checked = !!priv.profile;
+        if (privacyHideEmail) privacyHideEmail.checked = !!priv.hideEmail;
+        if (privacyGdpr) privacyGdpr.checked = !!priv.gdpr;
+      } catch (_) {}
+    } else {
+      // Set to defaults
+      if (privacyProfile) privacyProfile.checked = true;
+      if (privacyHideEmail) privacyHideEmail.checked = true;
+      if (privacyGdpr) privacyGdpr.checked = true;
+    }
+  };
+
+  const savePrivacyState = () => {
+    const user = GetCurrentUser();
+    const priv = {
+      profile: privacyProfile ? privacyProfile.checked : true,
+      hideEmail: privacyHideEmail ? privacyHideEmail.checked : true,
+      gdpr: privacyGdpr ? privacyGdpr.checked : true
+    };
+    localStorage.setItem(`sf_privacy_${user.email}`, JSON.stringify(priv));
+  };
+
+  loadPrivacyState();
+
+  const unlockBtn = document.getElementById("unlock_admin_mode_btn");
+  const adminPassInput = document.getElementById("settings_admin_password_input") as HTMLInputElement;
+  const adminStatusText = document.getElementById("admin_unlock_status");
+  const adminControlsPanel = document.getElementById("admin_users_panel");
+
+  const syncAdminUI = () => {
+    if (IsAdmin()) {
+      if (adminStatusText) adminStatusText.classList.remove("hidden");
+      if (adminControlsPanel) adminControlsPanel.classList.remove("hidden");
+      if (unlockBtn) unlockBtn.innerText = "Wyloguj jako Admin";
+      if (adminPassInput) {
+        adminPassInput.value = "ADMIN2026";
+        adminPassInput.disabled = true;
+      }
+    } else {
+      if (adminStatusText) adminStatusText.classList.add("hidden");
+      if (adminControlsPanel) adminControlsPanel.classList.add("hidden");
+      if (unlockBtn) unlockBtn.innerText = "Zaloguj jako Admin";
+      if (adminPassInput) {
+        adminPassInput.value = "";
+        adminPassInput.disabled = false;
+      }
+    }
+  };
+
+  syncAdminUI();
+
+  // If already initialized once, do not re-bind listeners to persistent DOM nodes!
+  if (settingsInitialized) {
+    return;
+  }
+  settingsInitialized = true;
+
+  // Bind Settings sidebar/navigation panel clicking
+  const subTabs = document.querySelectorAll(".settings-sub-tab");
+  subTabs.forEach(tab => {
+    tab.addEventListener("click", (e) => {
+      const sectionId = (e.currentTarget as HTMLElement).getAttribute("data-section");
+      if (sectionId) {
+        SwitchSettingsSection(sectionId);
+      }
+    });
+  });
+
+  // Bind Theme Switched Trigger
+  if (appearanceToggle) {
+    appearanceToggle.addEventListener("click", () => {
+      const isCurrentlyDark = document.documentElement.classList.contains("dark");
+      if (isCurrentlyDark) {
+        // Toggle to light mode
+        document.documentElement.classList.remove("dark");
+        localStorage.setItem("theme", "light");
+        syncThemeToggleUI(false);
+      } else {
+        // Toggle to dark mode
+        document.documentElement.classList.add("dark");
+        localStorage.setItem("theme", "dark");
+        syncThemeToggleUI(true);
+      }
+    });
+  }
+
+  // Bind checkbox handlers to persist notification parameters
+  const elems = getCheckedElements();
+  if (elems.posts) elems.posts.addEventListener("change", saveNotifState);
+  if (elems.replies) elems.replies.addEventListener("change", saveNotifState);
+  if (elems.files) elems.files.addEventListener("change", saveNotifState);
+
+  if (privacyProfile) privacyProfile.addEventListener("change", savePrivacyState);
+  if (privacyHideEmail) privacyHideEmail.addEventListener("change", savePrivacyState);
+  if (privacyGdpr) privacyGdpr.addEventListener("change", savePrivacyState);
+
+  if (unlockBtn && adminPassInput) {
+    unlockBtn.addEventListener("click", () => {
+      if (IsAdmin()) {
+        localStorage.setItem("sf_admin_mode_locked", "true");
+        localStorage.removeItem("sf_session_admin_unlocked");
+        const currentUser = GetCurrentUser();
+        if (currentUser.role === "admin" && currentUser.email.toLowerCase() !== "szymonherb1234@gmail.com") {
+          currentUser.role = "student";
+          SaveUser(currentUser);
+        }
+        alert("Wylogowano pomyślnie z roli administratora platformy.");
+        syncAdminUI();
+        RenderAdminUsersList();
+        RenderForumFeed();
+        SyncAdminTabVisibility();
+        return;
+      }
+
+      const passValue = adminPassInput.value.trim();
+      const currentUser = GetCurrentUser();
+      const isNaturalAdmin = currentUser && (currentUser.role === "admin" || (currentUser.email && (currentUser.email.toLowerCase() === "szymonherb1234@gmail.com" || currentUser.email.toLowerCase() === "admin@schoolforum.pl")));
+      
+      if (passValue === "ADMIN2026" || isNaturalAdmin) {
+        localStorage.removeItem("sf_admin_mode_locked");
+        localStorage.setItem("sf_session_admin_unlocked", "true");
+        alert("Autoryzacja udana! Witamy w panelu moderatora SchoolForum.");
+        syncAdminUI();
+        RenderAdminUsersList();
+        // Redraw forum feeds to instantly show actions!
+        RenderForumFeed();
+        SyncAdminTabVisibility();
+      } else {
+        alert("BŁĄD AUTORYZACJI:\nWprowadzone hasło administratora jest niepoprawne.");
+      }
+    });
+  }
+
+  // Delete account trigger (PROPER DATABASE SYNCHRONIZATION)
+  const delBtn = document.getElementById("delete_account_btn");
+  if (delBtn) {
+    delBtn.addEventListener("click", () => {
+      customConfirm("TRWALE USUŃ MOJE KONTO", "Czy na pewno chcesz trwale usunąć swoje konto z bazy danych SchoolForum?\nWszystkie dane Twojego profilu zostaną wymazane nieodwracalnie zgodnie z polityką RODO.", () => {
+        const currentUser = GetCurrentUser();
+        // Remove account from registered users list
+        const allUsers = GetAllRegisteredUsers();
+        const updatedUsers = allUsers.filter(u => u.email.toLowerCase() !== currentUser.email.toLowerCase());
+        SaveAllRegisteredUsers(updatedUsers);
+
+        // Clear session caches
+        localStorage.removeItem("sf_user");
+        localStorage.removeItem("sf_logged_in");
+        localStorage.removeItem("sf_session_admin_unlocked");
+        
+        LogOutUser();
+      });
+    });
+  }
+
+  // Bind direct exit button from Admin Panel (Zakładka 6)
+  const exitAdminBtn = document.getElementById("admin_logout_direct_btn");
+  if (exitAdminBtn) {
+    exitAdminBtn.addEventListener("click", () => {
+      const currentUser = GetCurrentUser();
+      
+      // If fully logged in as mock main admin, log out entirely to welcome screen
+      if (currentUser.email.toLowerCase() === "admin@schoolforum.pl") {
+        alert("Wylogowano całkowicie z konta Administratora.");
+        LogOutUser();
+        return;
+      }
+
+      localStorage.setItem("sf_admin_mode_locked", "true");
+      localStorage.removeItem("sf_session_admin_unlocked");
+      if (currentUser.role === "admin" && currentUser.email.toLowerCase() !== "szymonherb1234@gmail.com") {
+        currentUser.role = "student";
+        SaveUser(currentUser);
+      }
+      alert("Wylogowano pomyślnie z Konsoli Administratora.");
+      syncAdminUI();
+      SyncAdminTabVisibility();
+
+      // Automatically redirect to the public Forum feed tab
+      const forumBtn = document.querySelector('.tab-btn[data-tab="forum"]') as HTMLElement;
+      if (forumBtn) {
+        forumBtn.click();
+      }
+    });
+  }
+
+  // Bind test accounts generator (Zakładka 6)
+  const createMockBtn = document.getElementById("admin_create_mock_users_btn");
+  if (createMockBtn) {
+    createMockBtn.addEventListener("click", () => {
+      const list = GetAllRegisteredUsers();
+      const mockUsers: SchoolUser[] = [
+        {
+          email: "mateusz_mat@technikum.edu.pl",
+          fullname: "Mateusz Wiśniewski",
+          avatar: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?q=80&w=256&auto=format&fit=crop",
+          bio: "Cześć! Interesuję się programowaniem w Pythonie i fizyką kwantową.",
+          schoolClass: "3LO",
+          role: "student",
+          bookmarkedPosts: [],
+          joinedDate: new Date().toISOString().substring(0, 10)
+        },
+        {
+          email: "karolina_eko@kopernik.edu.pl",
+          fullname: "Karolina Jackowiak",
+          avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=256&auto=format&fit=crop",
+          bio: "Cześć! Interesuję się historią nowożytną i debatami oksfordzkimi.",
+          schoolClass: "2LO",
+          role: "student",
+          bookmarkedPosts: [],
+          joinedDate: new Date().toISOString().substring(0, 10)
+        }
+      ];
+      let added = 0;
+      mockUsers.forEach(mu => {
+        if (!list.some(x => x.email.toLowerCase() === mu.email.toLowerCase())) {
+          list.push(mu);
+          added++;
+        }
+      });
+      if (added > 0) {
+        SaveAllRegisteredUsers(list);
+        alert(`Wygenerowano i pomyślnie dodano ${added} testowe konta uczniów.`);
+        RenderAdminDashboard();
+        RenderAdminUsersList();
+      } else {
+        alert("Wszystkie testowe konta są już w bazie.");
+      }
+    });
+  }
+
+  // Set default active section
+  SwitchSettingsSection("appearance");
+}
+
+/**
+ * Control Admin Tab display visibility triggers dynamically (Konto -> Admin Panel)
+ */
+export function SyncAdminTabVisibility(): void {
+  const adminBtn = document.getElementById("admin_sidebar_btn");
+  const mobileAdminBtn = document.getElementById("mobile_admin_sidebar_btn");
+  const isAdminNow = IsAdmin();
+
+  if (isAdminNow) {
+    if (adminBtn) adminBtn.classList.remove("hidden");
+    if (mobileAdminBtn) mobileAdminBtn.classList.remove("hidden");
+  } else {
+    if (adminBtn) adminBtn.classList.add("hidden");
+    if (mobileAdminBtn) mobileAdminBtn.classList.add("hidden");
+  }
+}
+
+/**
+ * Renders the primary Administration Panel Dashboard (all accounts, banned/muted stats, deletions)
+ */
+export function RenderAdminDashboard(): void {
+  const totalLabel = document.getElementById("admin_stat_total_users");
+  const bannedLabel = document.getElementById("admin_stat_banned");
+  const mutedLabel = document.getElementById("admin_stat_muted");
+  const container = document.getElementById("admin_dashboard_users_list");
+
+  if (!container) return;
+
+  const users = GetAllRegisteredUsers();
+  const banned: string[] = JSON.parse(localStorage.getItem("sf_banned_users") || "[]");
+  const muted: string[] = JSON.parse(localStorage.getItem("sf_muted_users") || "[]");
+
+  if (totalLabel) totalLabel.innerText = users.length.toString();
+  if (bannedLabel) bannedLabel.innerText = banned.length.toString();
+  if (mutedLabel) mutedLabel.innerText = muted.length.toString();
+
+  if (users.length === 0) {
+    container.innerHTML = `
+      <div class="py-8 text-center rounded-2xl bg-slate-50 dark:bg-slate-900/40 border border-slate-150 dark:border-slate-800">
+        <p class="text-xs text-slate-500">Brak aktywnych kont uczniów w bazie platformy.</p>
+      </div>
+    `;
+    return;
+  }
+
+  const currentUser = GetCurrentUser();
+  let html = "";
+
+  users.forEach(u => {
+    const isSelf = u.email.toLowerCase() === currentUser.email.toLowerCase();
+    const isBanned = banned.includes(u.email.toLowerCase());
+    const isMuted = muted.includes(u.email.toLowerCase());
+
+    html += `
+      <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/45 border border-slate-150 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="flex items-center gap-3.5 min-w-0">
+          <img src="${u.avatar}" alt="Avatar" class="view-user-profile-trigger cursor-pointer w-11 h-11 rounded-full object-cover border border-slate-200 dark:border-slate-705 shrink-0" data-user-email="${u.email}" title="Zobacz profil" />
+          <div class="min-w-0">
+            <div class="font-extrabold text-sm text-slate-850 dark:text-zinc-100 flex items-center gap-1.5 flex-wrap">
+              <span class="view-user-profile-trigger cursor-pointer hover:underline" data-user-email="${u.email}" title="Zobacz profil">${u.fullname}</span>
+              <span class="px-2 py-0.5 text-[9px] bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded font-bold">${u.schoolClass || 'Bez Klasy'}</span>
+              ${isSelf ? '<span class="px-1.5 py-0.5 text-[9px] bg-blue-105 text-blue-600 dark:bg-blue-950 dark:text-blue-400 rounded font-bold">Ty</span>' : ''}
+              ${isBanned ? '<span class="px-1.5 py-0.5 text-[9px] bg-red-105 text-red-650 dark:bg-red-950/60 dark:text-red-400 rounded font-bold">ZBANOWANY</span>' : ''}
+              ${isMuted ? '<span class="px-1.5 py-0.5 text-[9px] bg-amber-105 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400 rounded font-bold">WYCISZONY</span>' : ''}
+            </div>
+            <div class="view-user-profile-trigger cursor-pointer text-[10px] text-slate-450 dark:text-slate-500 font-mono tracking-tight mt-0.5 hover:underline" data-user-email="${u.email}" title="Zobacz profil">${u.email}</div>
+            ${u.bio ? `<p class="text-[11px] text-slate-500 dark:text-slate-400 italic mt-1 line-clamp-1">${u.bio}</p>` : ''}
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 shrink-0 select-none">
+          <!-- View Profile Action Button -->
+          <button class="view-user-profile-trigger px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0c1424] text-slate-500 dark:text-slate-400 hover:text-blue-505 hover:border-blue-300 dark:hover:border-blue-900 cursor-pointer text-[10px] font-bold transition-all" data-user-email="${u.email}" title="Zobacz profil">
+            Profil
+          </button>
+          
+          <!-- Toggle Muted -->
+          <button class="admin-dashboard-mute-btn px-2.5 py-1.5 rounded-lg border font-bold text-[10px] cursor-pointer transition-all ${isMuted ? 'bg-amber-100 dark:bg-amber-950 border-amber-250 dark:border-amber-900 text-amber-600' : 'bg-white dark:bg-[#0c1424] border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:text-amber-500'}" data-email="${u.email}">
+            ${isMuted ? 'Dopuść' : 'Wycisz'}
+          </button>
+          
+          <!-- Toggle Banned -->
+          <button class="admin-dashboard-ban-btn px-2.5 py-1.5 rounded-lg border font-bold text-[10px] cursor-pointer transition-all ${isBanned ? 'bg-green-100 dark:bg-green-950 border-green-250 dark:border-green-900 text-green-600' : 'bg-red-50 dark:bg-red-950/25 border-red-200 dark:border-red-950/40 text-red-500 hover:bg-red-650 hover:text-white'}" data-email="${u.email}">
+            ${isBanned ? 'Odbanuj' : 'Zbanuj'}
+          </button>
+
+          <!-- Permanently Delete Account -->
+          ${!isSelf ? `
+            <button class="admin-dashboard-delete-btn p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors cursor-pointer" data-email="${u.email}" title="Zniszcz konto bezpowrotnie">
+              <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            </button>
+          ` : ''}
+        </div>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+
+  // Bind profile triggers for newly rendered admin dashboard list
+  if (typeof (window as any).BindUserProfileTriggersGlobal === "function") {
+    (window as any).BindUserProfileTriggersGlobal();
+  }
+
+  // Bind Actions (Mute)
+  container.querySelectorAll(".admin-dashboard-mute-btn").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      const email = (e.currentTarget as HTMLElement).getAttribute("data-email");
+      if (email) {
+        const list = JSON.parse(localStorage.getItem("sf_muted_users") || "[]");
+        const idx = list.indexOf(email.toLowerCase());
+        if (idx === -1) {
+          list.push(email.toLowerCase());
+          alert(`Uczeń ${email} został wyciszony!`);
+        } else {
+          list.splice(idx, 1);
+          alert(`Uczniowi ${email} przywrócono głos.`);
+        }
+        localStorage.setItem("sf_muted_users", JSON.stringify(list));
+        RenderAdminDashboard();
+        RenderAdminUsersList();
+        RenderForumFeed();
+      }
+    });
+  });
+
+  // Bind Actions (Ban)
+  container.querySelectorAll(".admin-dashboard-ban-btn").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      const email = (e.currentTarget as HTMLElement).getAttribute("data-email");
+      if (email) {
+        const list = JSON.parse(localStorage.getItem("sf_banned_users") || "[]");
+        const idx = list.indexOf(email.toLowerCase());
+        if (idx === -1) {
+          customConfirm("STAŁA BLOKADA KONTA", `Czy na pewno chcesz zbanować konto o adresie ${email}?\nUżytkownik zostanie natychmiastowo zablokowany.`, () => {
+            list.push(email.toLowerCase());
+            localStorage.setItem("sf_banned_users", JSON.stringify(list));
+            RenderAdminDashboard();
+            RenderAdminUsersList();
+            RenderForumFeed();
+          });
+        } else {
+          list.splice(idx, 1);
+          localStorage.setItem("sf_banned_users", JSON.stringify(list));
+          RenderAdminDashboard();
+          RenderAdminUsersList();
+          RenderForumFeed();
+        }
+      }
+    });
+  });
+
+  // Bind Actions (Permanently Delete)
+  container.querySelectorAll(".admin-dashboard-delete-btn").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      const email = (e.currentTarget as HTMLElement).getAttribute("data-email");
+      if (email) {
+        customConfirm("BEZPOWROTNE KASOWANIE KONTA", `Czy na pewno chcesz bezpowrotnie i całkowicie usunąć konto o adresie ${email} z bazy danych platformy?\nTej czynności nie da się cofnąć.`, () => {
+          let users = GetAllRegisteredUsers();
+          users = users.filter(u => u.email.toLowerCase() !== email.toLowerCase());
+          SaveAllRegisteredUsers(users);
+
+          // Clean banned/muted status elements list
+          const bannedList = JSON.parse(localStorage.getItem("sf_banned_users") || "[]").filter((x: string) => x.toLowerCase() !== email.toLowerCase());
+          const mutedList = JSON.parse(localStorage.getItem("sf_muted_users") || "[]").filter((x: string) => x.toLowerCase() !== email.toLowerCase());
+          localStorage.setItem("sf_banned_users", JSON.stringify(bannedList));
+          localStorage.setItem("sf_muted_users", JSON.stringify(mutedList));
+
+          RenderAdminDashboard();
+          RenderAdminUsersList();
+          RenderForumFeed();
+        });
+      }
+    });
+  });
+}

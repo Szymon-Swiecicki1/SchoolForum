@@ -1,0 +1,370 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { GetCurrentUser } from "./auth";
+
+export interface ExamPracticeQuestion {
+  id: string;
+  subject: string;
+  question: string;
+  options: string[];
+  correctIndex: number;
+  explanation: string;
+}
+
+const PRACTICE_QUESTIONS: ExamPracticeQuestion[] = [
+  {
+    id: "ep_1",
+    subject: "Matematyka",
+    question: "Dany jest ciąg arytmetyczny (an) w którym a2 = 5 oraz a4 = 11. Różnica r tego ciągu wynosi:",
+    options: ["2", "3", "4", "6"],
+    correctIndex: 1,
+    explanation: "W ciągu arytmetycznym zachodzi wzór: a4 = a2 + 2r. Zatem 11 = 5 + 2r => 2r = 6 => r = 3."
+  },
+  {
+    id: "ep_2",
+    subject: "Matematyka",
+    question: "Rozwiązaniem równania (x - 3)(x + 2) / (x^2 - 9) = 0 jest liczba:",
+    options: ["3", "-3", "-2", "Równanie nie ma rozwiązań"],
+    correctIndex: 2,
+    explanation: "Dziedziną równania są liczby rzeczywiste z wyłączeniem x = 3 oraz x = -3 (mianownik różny od zera). Przyrównując licznik do zera otrzymujemy x = 3 lub x = -2. Ponieważ 3 jest wykluczone z dziedziny, jedynym poprawnym rozwiązaniem jest x = -2."
+  },
+  {
+    id: "ep_3",
+    subject: "Biologia",
+    question: "Który z podanych procesów metabolicznych zachodzi w mitochondrium i wymaga obecności tlenu?",
+    options: ["Glikoliza", "Cykl Krebsa (łańcuch oddechowy)", "Fermentacja mlekowa", "Faza jasna fotosyntezy"],
+    correctIndex: 1,
+    explanation: "Reakcje pomostowe, cykl Krebsa oraz łańcuch oddechowy zachodzą wewnątrz mitochondriów i są ściśle powiązane z oddychaniem tlenowym."
+  },
+  {
+    id: "ep_4",
+    subject: "Polski",
+    question: "Do jakiego gatunku literackiego zalicza się utwór 'Wesele' Stanisława Wyspiańskiego?",
+    options: ["Epika (powieść)", "Liryka (poemat)", "Dramat (dramat symboliczny)", "Publicystyka (felieton)"],
+    correctIndex: 2,
+    explanation: "'Wesele' Wyspiańskiego to sztandarowy polski dramat symboliczny z okresu Młodej Polski."
+  },
+  {
+    id: "ep_5",
+    subject: "Historia",
+    question: "W którym roku doszło do podpisania Unii Lubelskiej, powołującej Rzeczpospolitą Obojga Narodów?",
+    options: ["1385 r.", "1410 r.", "1569 r.", "1683 r."],
+    correctIndex: 2,
+    explanation: "Unia Lubelska została zawarta 1 lipca 1569 roku na sejmie walnym w Lublinie, łącząc Koronę Królestwa Polskiego i Wielkie Księstwo Litewskie."
+  },
+  {
+    id: "ep_6",
+    subject: "Fizyka",
+    question: "Satelita krąży wokół Ziemi po orbicie kołowej. Siła dośrodkowa działająca na satelitę pochodzi od siły:",
+    options: ["Tarcia atmosferycznego", "Grawitacji", "Magnetycznej", "Odrzutowej silników"],
+    correctIndex: 1,
+    explanation: "Zgodnie z prawem powszechnego ciążenia to siła grawitacji Ziemi stanowi siłę dośrodkową zakrzywiającą tor ruchu satelity."
+  },
+  {
+    id: "ep_7",
+    subject: "Chemia",
+    question: "Który z roztworów o podanym odczynie pH wykazuje najsilniejsze właściwości kwasowe?",
+    options: ["pH = 1", "pH = 5", "pH = 7", "pH = 14"],
+    correctIndex: 0,
+    explanation: "Odczyn kwasowy to pH < 7. Im mniejsza wartość pH, tym większe stężenie jonów wodorowych [H+] i silniejszy kwas."
+  }
+];
+
+let currentScore = 0;
+let currentQuestionIndex = 0;
+let selectedSubject: string | null = null;
+let currentQuestionsList: ExamPracticeQuestion[] = [];
+let hasAnsweredCurrent = false;
+let selectedAnswerIndex: number | null = null;
+
+export function RenderExamboxModule(): void {
+  const container = document.getElementById("exambox_container");
+  if (!container) return;
+
+  if (!selectedSubject) {
+    // Render Subject Selector Dashboard
+    const uniqueSubjects = Array.from(new Set(PRACTICE_QUESTIONS.map(q => q.subject)));
+    const subjectCardsHtml = uniqueSubjects.map(sub => {
+      let icon = "book-open";
+      let gradient = "from-blue-500 to-indigo-600";
+      switch(sub) {
+        case "Matematyka":
+          icon = "variable";
+          gradient = "from-indigo-600 to-indigo-850";
+          break;
+        case "Biologia":
+          icon = "dna";
+          gradient = "from-emerald-500 to-teal-700";
+          break;
+        case "Polski":
+          icon = "feather";
+          gradient = "from-amber-500 to-orange-600";
+          break;
+        case "Historia":
+          icon = "landmark";
+          gradient = "from-bronze-500 to-yellow-800 bg-[#854d0e]";
+          break;
+        case "Fizyka":
+          icon = "orbit";
+          gradient = "from-cyan-500 to-blue-600";
+          break;
+        case "Chemia":
+          icon = "flask-conical";
+          gradient = "from-purple-500 to-pink-600";
+          break;
+      }
+
+      return `
+        <button class="exambox-subject-card p-6 rounded-3xl bg-white dark:bg-[#0c1424] border border-slate-200 dark:border-slate-850 shadow-sm hover:shadow-lg hover:scale-[1.02] hover:border-blue-500/50 transition-all text-left flex flex-col justify-between h-44 cursor-pointer relative overflow-hidden group" data-subject="${sub}">
+          <div class="absolute -right-2 -bottom-2 opacity-5 dark:opacity-10 text-slate-900 dark:text-white group-hover:scale-110 transition-transform duration-300">
+            <svg class="w-28 h-28" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <!-- Subspecific simple iconography fallback -->
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"/>
+            </svg>
+          </div>
+          <div class="w-11 h-11 flex items-center justify-center rounded-2xl bg-gradient-to-tr ${gradient} text-white shadow">
+            <!-- Icon is simulated, using text for crossplatform robust safety -->
+            <span class="text-lg font-bold">⌨</span>
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-900 dark:text-white text-base leading-tight">${sub}</h3>
+            <p class="text-[11px] text-slate-450 mt-1">Sprawdź swoją wiedzę z pytań egzaminacyjnych w bazie</p>
+          </div>
+        </button>
+      `;
+    }).join("");
+
+    container.innerHTML = `
+      <div class="space-y-6">
+        <div class="space-y-1.5 text-center max-w-xl mx-auto py-4">
+          <span class="px-3 py-1 bg-blue-100/60 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 text-xs font-bold rounded-full uppercase tracking-widest">Trening Egzaminacyjny</span>
+          <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">Interaktywny Trener Pytania z Egzaminu</h1>
+          <p class="text-sm text-slate-500 dark:text-slate-400">Rozwiązuj prawdziwe pytania z zakresu maturalnego oraz sprawdzianów licealnych. Wybierz przedmiot i zacznij interaktywny trening:</p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+          ${subjectCardsHtml}
+        </div>
+      </div>
+    `;
+
+    // Bind Cards Click
+    document.querySelectorAll(".exambox-subject-card").forEach(card => {
+      card.addEventListener("click", (e) => {
+        const sub = (e.currentTarget as HTMLElement).getAttribute("data-subject");
+        if (sub) {
+          selectedSubject = sub;
+          currentQuestionsList = PRACTICE_QUESTIONS.filter(q => q.subject === sub);
+          currentQuestionIndex = 0;
+          currentScore = 0;
+          hasAnsweredCurrent = false;
+          selectedAnswerIndex = null;
+          RenderExamboxModule();
+        }
+      });
+    });
+
+  } else {
+    // Render Active Quiz Sheet
+    if (currentQuestionsList.length === 0) {
+      container.innerHTML = `
+        <div class="p-12 text-center rounded-3xl bg-white dark:bg-[#0c1424] border border-slate-205 dark:border-slate-850">
+          <h3 class="font-bold text-slate-800 dark:text-white text-base">Brak pytań</h3>
+          <p class="text-sm text-slate-450 mt-1">Niestety w tej chwili nie ma pytań dla przedmiotu ${selectedSubject}.</p>
+          <button id="exambox_back_btn" class="mt-4 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm cursor-pointer shadow">Wróć</button>
+        </div>
+      `;
+      document.getElementById("exambox_back_btn")?.addEventListener("click", () => {
+        selectedSubject = null;
+        RenderExamboxModule();
+      });
+      return;
+    }
+
+    if (currentQuestionIndex >= currentQuestionsList.length) {
+      // Quiz Complete View!
+      const pct = Math.round((currentScore / currentQuestionsList.length) * 100);
+      let feedbackMsg = "Warto jeszcze poćwiczyć i powtórzyć najważniejsze działy.";
+      let themeGradient = "from-amber-500 to-orange-600";
+      
+      if (pct >= 85) {
+        feedbackMsg = "Genialnie! Jesteś w pełni gotowy na każdy egzamin państwowy!";
+        themeGradient = "from-emerald-500 to-teal-600";
+      } else if (pct >= 50) {
+        feedbackMsg = "Dobry wynik! Masz stabilne podstawy, zrób jeszcze kilka serii!";
+        themeGradient = "from-blue-500 to-indigo-600";
+      }
+
+      container.innerHTML = `
+        <div class="max-w-md mx-auto p-8 rounded-3xl bg-white dark:bg-[#0c1424] border border-slate-200 dark:border-slate-850 text-center space-y-6 shadow-xl relative overflow-hidden">
+          <div class="absolute inset-0 bg-radial from-blue-500/5 to-transparent dark:from-blue-500/10 dark:to-transparent pointer-events-none"></div>
+          
+          <div class="w-24 h-24 mx-auto flex items-center justify-center rounded-full bg-gradient-to-tr ${themeGradient} text-white font-extrabold text-2xl shadow-lg">
+            ${pct}%
+          </div>
+
+          <div class="space-y-1.5">
+            <h2 class="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">Gratulacje! Trening ukończony</h2>
+            <p class="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest">${selectedSubject}</p>
+          </div>
+
+          <p class="text-xs text-slate-650 dark:text-slate-350 bg-slate-50 dark:bg-slate-900/40 p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800 leading-relaxed font-medium">
+            Twój wynik: <strong class="text-slate-900 dark:text-white">${currentScore} / ${currentQuestionsList.length}</strong> poprawnych odpowiedzi.<br>
+            <span class="text-[11px] text-slate-500 block mt-1">${feedbackMsg}</span>
+          </p>
+
+          <div class="flex gap-3 justify-center pt-2">
+            <button id="exambox_retry_btn" class="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-extrabold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-850 shadow-sm cursor-pointer transition-all">Powtórz</button>
+            <button id="exambox_home_btn" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold shadow-md shadow-blue-500/10 cursor-pointer transition-all">Zmień przedmiot</button>
+          </div>
+        </div>
+      `;
+
+      document.getElementById("exambox_retry_btn")?.addEventListener("click", () => {
+        currentQuestionIndex = 0;
+        currentScore = 0;
+        hasAnsweredCurrent = false;
+        selectedAnswerIndex = null;
+        RenderExamboxModule();
+      });
+
+      document.getElementById("exambox_home_btn")?.addEventListener("click", () => {
+        selectedSubject = null;
+        RenderExamboxModule();
+      });
+
+      return;
+    }
+
+    // Active Question Rendering
+    const q = currentQuestionsList[currentQuestionIndex];
+    const pct = Math.round(((currentQuestionIndex) / currentQuestionsList.length) * 100);
+
+    const optionsHtml = q.options.map((option, idx) => {
+      let cardClass = "border-slate-200 dark:border-slate-850 bg-slate-50/50 dark:bg-slate-900/30 text-slate-800 dark:text-slate-300 hover:border-blue-400/50 hover:bg-white dark:hover:bg-slate-850";
+      
+      if (hasAnsweredCurrent) {
+        if (idx === q.correctIndex) {
+          // Correct answer highlight
+          cardClass = "border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-extrabold";
+        } else if (idx === selectedAnswerIndex) {
+          // My incorrect answer
+          cardClass = "border-rose-500 bg-rose-500/10 text-rose-700 dark:text-rose-450 font-extrabold";
+        } else {
+          cardClass = "border-slate-200 dark:border-slate-850 bg-slate-50/20 dark:bg-slate-900/10 text-slate-400 dark:text-slate-600 scale-[0.98] select-none pointer-events-none";
+        }
+      } else {
+        if (idx === selectedAnswerIndex) {
+          cardClass = "border-blue-600 dark:border-blue-400 bg-blue-50/10 dark:bg-blue-950/20 text-blue-600 dark:text-blue-300 font-bold scale-[1.01] shadow-xs";
+        }
+      }
+
+      const letter = String.fromCharCode(65 + idx); // A, B, C, D
+
+      return `
+        <button class="exambox-option-btn w-full p-4 rounded-2xl border text-left text-xs sm:text-sm flex gap-3.5 items-center transition-all cursor-pointer ${cardClass}" data-index="${idx}" ${hasAnsweredCurrent ? 'disabled' : ''}>
+          <span class="w-6 h-6 shrink-0 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center font-bold text-[11px] shadow-2xs">${letter}</span>
+          <span class="leading-relaxed flex-grow">${option}</span>
+        </button>
+      `;
+    }).join("");
+
+    const explanationHtml = hasAnsweredCurrent ? `
+      <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/30 border border-slate-150 dark:border-slate-850 text-xs text-slate-650 dark:text-slate-400 leading-relaxed transition-all duration-300">
+        <span class="font-bold text-slate-800 dark:text-slate-200 block mb-1">Objaśnienie i uzasadnienie:</span>
+        ${q.explanation}
+      </div>
+    ` : "";
+
+    container.innerHTML = `
+      <div class="max-w-2xl mx-auto space-y-5">
+        <!-- Progress Bar and Header -->
+        <div class="flex items-center justify-between gap-3 text-xs text-slate-500">
+          <button id="exambox_quiz_exit_btn" class="font-bold text-slate-450 hover:text-slate-700 dark:hover:text-white cursor-pointer hover:underline flex items-center gap-1">
+            <span>&larr; Wybierz inny przedmiot</span>
+          </button>
+          <span>Pytanie <strong>${currentQuestionIndex + 1}</strong> z <strong>${currentQuestionsList.length}</strong></span>
+        </div>
+
+        <!-- Realtime Progress bar track -->
+        <div class="w-full h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+          <div class="h-full bg-blue-600 dark:bg-blue-500 transition-all duration-350" style="width: ${pct}%"></div>
+        </div>
+
+        <!-- Question Sheet Card -->
+        <div class="p-5 sm:p-7 rounded-3xl bg-white dark:bg-[#0c1424] border border-slate-200 dark:border-slate-850 shadow-md space-y-6">
+          <div class="space-y-2">
+            <span class="px-2.5 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-[10px] font-bold text-indigo-650 dark:text-indigo-400 uppercase tracking-widest">
+              ${selectedSubject}
+            </span>
+            <h2 class="text-sm sm:text-base font-black text-slate-900 dark:text-white leading-relaxed pt-1">
+              ${q.question}
+            </h2>
+          </div>
+
+          <!-- Options Grid -->
+          <div class="space-y-2.5">
+            ${optionsHtml}
+          </div>
+
+          ${explanationHtml}
+
+          <!-- Next Button -->
+          <div class="flex justify-end pt-2">
+            ${!hasAnsweredCurrent ? `
+              <button id="exambox_check_btn" class="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow disabled:opacity-50 cursor-pointer transition-all" ${selectedAnswerIndex === null ? 'disabled' : ''}>Sprawdź odpowiedź</button>
+            ` : `
+              <button id="exambox_next_btn" class="px-6 py-2.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold shadow hover:opacity-90 cursor-pointer transition-all">Następne pytanie &rarr;</button>
+            `}
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Exit Button
+    document.getElementById("exambox_quiz_exit_btn")?.addEventListener("click", () => {
+      selectedSubject = null;
+      RenderExamboxModule();
+    });
+
+    // Select Option Option bindings
+    document.querySelectorAll(".exambox-option-btn").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        if (hasAnsweredCurrent) return;
+        const idx = parseInt((e.currentTarget as HTMLElement).getAttribute("data-index") || "0");
+        selectedAnswerIndex = idx;
+        RenderExamboxModule();
+      });
+    });
+
+    // Check Button Trigger
+    document.getElementById("exambox_check_btn")?.addEventListener("click", () => {
+      if (selectedAnswerIndex === null || hasAnsweredCurrent) return;
+      hasAnsweredCurrent = true;
+      if (selectedAnswerIndex === q.correctIndex) {
+        currentScore += 1;
+      }
+      RenderExamboxModule();
+    });
+
+    // Next Button Trigger
+    document.getElementById("exambox_next_btn")?.addEventListener("click", () => {
+      currentQuestionIndex += 1;
+      hasAnsweredCurrent = false;
+      selectedAnswerIndex = null;
+      RenderExamboxModule();
+    });
+  }
+}
+
+export function InitExamboxController(): void {
+  selectedSubject = null;
+  currentScore = 0;
+  currentQuestionIndex = 0;
+  hasAnsweredCurrent = false;
+  selectedAnswerIndex = null;
+  RenderExamboxModule();
+}
